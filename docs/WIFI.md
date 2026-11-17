@@ -14,6 +14,9 @@ Pour proposer ce portail même si le réseau habituel fonctionne, maintenir le
 bouton de la tête en mettant le lapin sous tension. Le conserver appuyé
 pendant le démarrage Linux, jusqu'aux **LED bleues**, puis le relâcher.
 Le bouton est lu pendant deux secondes avant que `nabd` ne prenne le GPIO.
+Entre les deux phases de provisionnement, le venv n’existe pas encore : le
+portail peut alors s’ouvrir sans signal bleu. Le parcours complet décrit ici
+s’applique après la phase `pynab`.
 Le mode Wi-Fi ne modifie pas le rôle de l'appui long une fois Pynab démarré.
 
 Les réseaux enregistrés sont conservés. Si personne ne rejoint le point

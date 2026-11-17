@@ -44,12 +44,25 @@ reconstruction identique octet pour octet.
 ## Préparer une SD neuve sur le lapin
 
 1. Flasher la base vérifiée, avec Raspberry Pi Imager ou un outil équivalent.
-   Créer son propre compte administrateur et son accès initial. Le chemin
+   Créer son propre compte administrateur et son accès initial, et choisir
+   explicitement le **pays Wi-Fi du lieu d’utilisation dans Imager**. Le chemin
    Imager complet et le premier démarrage public restent à qualifier.
 2. Placer notre dépôt, branche `trixie`, sous `/opt/pynab`, propriété de ce
    compte. Le remote `origin` doit être
    `https://github.com/guidouil/pynab-trixie.git`, l'arbre Git doit être propre.
-   Noter la révision exacte avec `git rev-parse HEAD`.
+   Depuis le compte propriétaire, le clone suivant établit aussi le suivi
+   `origin/trixie` :
+
+   ```sh
+   sudo install -d -o "$(id -un)" -g "$(id -gn)" /opt/pynab
+   git clone --branch trixie https://github.com/guidouil/pynab-trixie.git /opt/pynab
+   cd /opt/pynab
+   git rev-parse --abbrev-ref '@{upstream}'
+   git rev-parse HEAD
+   ```
+
+   Le premier résultat doit être `origin/trixie`. Pour un checkout existant,
+   vérifier ce suivi en plus de son nom de branche et de son remote.
 3. Depuis ce répertoire, installer les prérequis, les pilotes et la
    configuration Wi-Fi pour le prochain démarrage :
 
@@ -70,7 +83,15 @@ reconstruction identique octet pour octet.
 
    La phase refuse une base ou un rôle PostgreSQL Pynab préexistants, ainsi
    qu'une installation déjà préparée. Elle n'importe aucune base personnelle.
-   Redémarrer `nabd` lorsqu'on veut activer les ressources vocales installées.
+   Les modèles ont été installés après le premier démarrage de `nabd` :
+
+   ```sh
+   sudo systemctl restart nabd.service
+   sudo tail -n 50 /var/log/nabd.log
+   ```
+
+   Attendre `Native French voice ready` avant les essais au bouton ; le
+   premier chargement peut prendre jusqu’à 120 secondes sur le Zero W.
 
 Les métadonnées sont écrites dans `/var/lib/pynab-trixie/` : commit Pynab,
 noyau des pilotes, manifeste des sources, paquets système et Python. Le journal
