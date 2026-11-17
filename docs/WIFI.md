@@ -51,6 +51,12 @@ GPIO de Raspberry Pi OS. Le signal bleu utilise le venv Pynab lorsqu'il est
 déjà installé ; il est facultatif pendant la préparation initiale. Le contrôle
 LED est ordonné après `nabboot` et avant `nabd`, sans animation concurrente.
 
+Comitup exécute le callback avec l'identité du propriétaire du fichier. Une
+copie root est donc installée sous `/usr/lib/pynab/comitup-callback`, hors du
+checkout utilisateur, pour signaler les services sans demande de mot de passe.
+L'installateur Pynab la rafraîchit aussi pendant les mises à jour lorsque
+l'intégration Wi-Fi est configurée, sans redémarrer les services réseau.
+
 L'API officielle de Comitup propose uniquement une suppression du réseau
 courant pour demander le portail (`delete_connection`). Nous n'utilisons ni
 cette API ni la réinitialisation d'usine. Un petit lanceur modifie seulement

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 if [ "$1" == "CONNECTED" ]; then
-	systemctl is-active --quiet nabairqualityd && sudo systemctl kill -s SIGUSR1 nabairqualityd
-	systemctl is-active --quiet nabweatherd && sudo systemctl kill -s SIGUSR1 nabweatherd
+	systemctl is-active --quiet nabairqualityd && systemctl kill -s SIGUSR1 nabairqualityd
+	systemctl is-active --quiet nabweatherd && systemctl kill -s SIGUSR1 nabweatherd
 	echo '{"type":"command","sequence":[{"choreography":"nabd/vert.chor"}]}' | nc -4 -w 5 -v localhost 10543
 elif [ "$1" == "HOTSPOT" ]; then
 	echo '{"type":"command","sequence":[{"choreography":"nabd/rouge.chor"}]}' | nc -4 -w 5 -v localhost 10543

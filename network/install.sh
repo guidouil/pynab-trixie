@@ -15,19 +15,21 @@ done
 root_dir=$(cd -- "$(dirname -- "$0")/.." && pwd)
 [[ $root_dir =~ ^[a-zA-Z0-9_./-]+$ ]] || { echo 'Use an installation path containing only letters, numbers, dot, slash, dash or underscore.' >&2; exit 1; }
 
-python3 - "$root_dir" <<'PY'
+# Comitup executes callbacks as their owner, independently of its own uid.
+install -d -o root -g root -m 0755 /usr/lib/pynab
+install -o root -g root -m 0755 "$root_dir/comitup-callback.sh" /usr/lib/pynab/comitup-callback
+
+python3 - <<'PY'
 from pathlib import Path
 import re
-import sys
 
-root = sys.argv[1]
 path = Path('/etc/comitup.conf')
 text = path.read_text() if path.exists() else ''
 values = {
     'ap_name': 'Nabaztag-<nnn>',
     'web_service': 'nginx.service',
     'service_name': 'Nabaztag',
-    'external_callback': f'{root}/comitup-callback.sh',
+    'external_callback': '/usr/lib/pynab/comitup-callback',
     'primary_wifi_device': 'wlan0',
     'enable_appliance_mode': 'false',
     'enable_nuke': 'false',
@@ -62,7 +64,6 @@ Wants=pynab-wifi-setup.service
 After=pynab-wifi-setup.service
 EOF
 chmod 0644 /etc/systemd/system/pynab-wifi-setup.service /etc/systemd/system/comitup.service.d/pynab.conf /etc/systemd/system/nabd.service.d/wifi.conf
-chmod 0755 "$root_dir/comitup-callback.sh"
 systemctl enable NetworkManager.service comitup.service pynab-wifi-setup.service
 # Comitup owns port 80 and starts nginx only after the upstream connection succeeds.
 if systemctl list-unit-files nginx.service --no-legend --no-pager | grep -q '^nginx.service'; then

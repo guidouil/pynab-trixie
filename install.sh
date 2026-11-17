@@ -279,6 +279,10 @@ if [ $ci_chroot -eq 1 ]; then
   sudo pg_ctlcluster --skip-systemctl-redirect "$cluster_version" main stop
 fi
 
+if [[ -f /etc/systemd/system/comitup.service.d/pynab.conf ]]; then
+  sudo bash "$root_dir/network/install.sh" --no-start
+fi
+
 # copy service files
 echo "Installing service files"
 for service_file in nabd/nabd.socket */*.service ; do
