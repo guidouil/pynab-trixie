@@ -23,12 +23,23 @@ class NLU:
         "comment ça va": "mood",
         "donne moi ton humeur": "mood",
         "comment te sens tu": "mood",
+        "t' en penses quoi nabaztag": "8ball",
+        "tu en penses quoi nabaztag": "8ball",
     }
     INTENTS = {
         "clock": "nabclockd/clock",
         "weather": "nabweatherd/forecast",
         "tomorrow": "nabweatherd/forecast",
         "mood": "nabsurprised/surprise",
+        "8ball": "nab8balld/8ball",
+    }
+    # Older installed dictionaries lack these words; Nabaztag is not in fr.dict.
+    EXTRA_PRONUNCIATIONS = {
+        "t'": "tt",
+        "en": "an",
+        "penses": "pp an ss",
+        "quoi": "kk ww aa",
+        "nabaztag": "nn aa bb aa zz tt aa gg",
     }
 
     @staticmethod

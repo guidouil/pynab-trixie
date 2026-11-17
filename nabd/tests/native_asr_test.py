@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from nabd.leds import Led
 from nabd.nabd import Nabd, State
+from nabd.nlu import NLU
 
 
 class TestNativeASRLifecycle(unittest.IsolatedAsyncioTestCase):
@@ -97,6 +98,19 @@ class TestNativeASRLifecycle(unittest.IsolatedAsyncioTestCase):
         self.rabbit.button_callback("up", 2)
         await asyncio.wait_for(task, 1)
         self.assert_released()
+
+    async def test_guru_capture_routes_to_its_service(self):
+        self.rabbit.asr.get_decoded_string.return_value = (
+            "t' en penses quoi nabaztag"
+        )
+        self.rabbit.nlu = NLU("fr_FR")
+        task = self.hold()
+        self.rabbit.button_callback("up", 2)
+        await asyncio.wait_for(task, 1)
+        self.assert_released()
+        event, packet = self.rabbit.broadcast_event.call_args.args
+        self.assertEqual(event, "asr/nab8balld")
+        self.assertEqual(packet["nlu"], {"intent": "nab8balld/8ball"})
 
     async def test_lost_release_times_out_and_next_capture_starts(self):
         self.rabbit.ASR_CAPTURE_SECONDS = 0.01

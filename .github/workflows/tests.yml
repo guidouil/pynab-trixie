@@ -48,7 +48,7 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
 
       - name: Install requirements
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt pocketsphinx==5.1.1
 
       - name: Setup PostgreSQL database
         run: |

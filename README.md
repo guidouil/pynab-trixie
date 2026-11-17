@@ -33,9 +33,11 @@ le portail pour choisir son Wi-Fi. [Procédure et limites](docs/WIFI.md).
 ## Commandes vocales françaises
 
 Maintenir le bouton, attendre le bip, parler puis relâcher : « Quelle heure
-est-il ? », « La météo », « La météo demain », « Comment vas-tu ? ».
+est-il ? », « La météo », « La météo demain », « Comment vas-tu ? » ou
+« T’en penses quoi Nabaztag ? ».
 PocketSphinx fonctionne localement, sans écoute permanente ; la météo nécessite
 son accès Internet habituel. La capture dure au plus 15 secondes.
+[Formulations prises en charge et limites](docs/VOICE_COMMANDS.md).
 [Installation et qualification du moteur](docs/ZERO_W_TRIXIE.md).
 
 La conversation libre et la radio depuis le Mac utilisent l'application séparée

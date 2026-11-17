@@ -941,3 +941,21 @@ msgstr "Vérification et lancement de la mise à jour"
 #: templates/nabweb/upgrade/index.html
 msgid "Could not start the update."
 msgstr "Impossible de lancer la mise à jour."
+
+msgid "Native voice commands are available only in French. Hold the button, wait for the beep, speak, then release. Recording stops after 15 seconds."
+msgstr "Les commandes vocales natives sont uniquement en français. Maintenez le bouton, attendez le bip, parlez puis relâchez. L'enregistrement s'arrête après 15 secondes."
+
+msgid "Clock: <q>Quelle heure est-il ?</q> or <q>Donne-moi l'heure</q>."
+msgstr "Heure : <q>Quelle heure est-il ?</q> ou <q>Donne-moi l'heure</q>."
+
+msgid "Weather: <q>La météo</q> or <q>La météo demain</q>."
+msgstr "Météo : <q>La météo</q> ou <q>La météo demain</q>."
+
+msgid "Mood: <q>Comment vas-tu ?</q> or <q>Donne-moi ton humeur</q>."
+msgstr "Humeur : <q>Comment vas-tu ?</q> ou <q>Donne-moi ton humeur</q>."
+
+msgid "Magic 8 Ball: <q>T'en penses quoi Nabaztag ?</q>."
+msgstr "Gourou : <q>T'en penses quoi Nabaztag ?</q>."
+
+msgid "Use these phrases. Other historical voice commands, including air quality, tai chi, sleep and birthday requests, are not available in this version. Open conversation in the Mac application is separate."
+msgstr "Utilisez ces formulations. Les autres commandes vocales historiques, notamment la qualité de l'air, le taï-chi, le sommeil et les anniversaires, ne sont pas disponibles dans cette version. La conversation libre dans l'application Mac est indépendante."

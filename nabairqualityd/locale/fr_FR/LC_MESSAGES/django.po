@@ -135,3 +135,6 @@ msgstr "Annuler"
 #: templates/nabairqualityd/settings.html:81
 msgid "Unknown server error"
 msgstr "Erreur inconnue du serveur"
+
+msgid "Air quality cannot currently be requested by voice. Use the Today button below."
+msgstr "La qualité de l'air ne peut actuellement pas être demandée à la voix. Utilisez le bouton Aujourd'hui ci-dessous."

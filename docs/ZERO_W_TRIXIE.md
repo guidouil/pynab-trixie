@@ -71,13 +71,16 @@ préexistants peut être fourni en argument. Le modèle reste hors Git sous
 de l'installation. Aucun serveur ni écoute permanente n'est ajouté.
 
 Maintenir le bouton, attendre le bip, dire « Quelle heure est-il ? », « La
-météo », « La météo demain » ou « Comment vas-tu ? », puis relâcher. La capture
+météo », « La météo demain », « Comment vas-tu ? » ou
+« T’en penses quoi Nabaztag ? », puis relâcher. La capture
 est limitée à 15 secondes. Le clic court du relais Mac reste disponible.
 Le microphone est configuré avant le bip ; capture et lecture utilisent des
 futures distinctes. Les échantillons du bip sont ignorés, puis la parole est
 acceptée jusqu'au relâchement.
-L'heure, la météo et l'humeur sont les seules intentions rétablies ; elles
-utilisent les annonces Pynab. La reconnaissance fonctionne sans Internet,
+L'heure, la météo, l'humeur et le Gourou sont les quatre familles de commandes
+prévues ; elles utilisent les annonces Pynab. Les formulations et les commandes
+historiques encore absentes sont listées dans [VOICE_COMMANDS.md](VOICE_COMMANDS.md).
+La reconnaissance fonctionne sans Internet,
 mais les prévisions météo gardent leur accès Internet habituel.
 
 La grammaire est confirmée par un détecteur acoustique de mots de commande :

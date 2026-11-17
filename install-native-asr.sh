@@ -79,6 +79,10 @@ pronunciations = {}
 for line in entries:
     word, phones = line.split(maxsplit=1)
     pronunciations.setdefault(word.split("(")[0], []).append(phones)
+for word, phones in NLU.EXTRA_PRONUNCIATIONS.items():
+    if word not in pronunciations:
+        entries.append(f"{word} {phones}")
+        pronunciations[word] = [phones]
 if words - pronunciations.keys():
     raise RuntimeError(f"Missing French pronunciations: {words - pronunciations.keys()}")
 (stage / "commands.dict").write_text("\n".join(entries) + "\n", encoding="utf-8")

@@ -26,6 +26,7 @@ class ASR:
         "comment vas": ("mood", 1e-20),
         "comment ça va": ("mood", 1e-20),
         "humeur": ("mood", 1e-5),
+        "penses quoi": ("8ball", 1e-20),
     }
 
     @staticmethod
@@ -54,6 +55,11 @@ class ASR:
             "loglevel": "FATAL",
         }
         self._grammar = Decoder(dict=str(model / "commands.dict"), **options)
+        self._keywords = Decoder(dict=str(model / "keywords.dict"), **options)
+        for decoder in (self._grammar, self._keywords):
+            for word, phones in NLU.EXTRA_PRONUNCIATIONS.items():
+                if decoder.lookup_word(word) is None:
+                    decoder.add_word(word, phones)
         grammar = (
             "#JSGF V1.0; grammar commands; public <request> = "
             "<command> | <command> et <command>; <command> = "
@@ -62,7 +68,6 @@ class ASR:
         )
         self._grammar.add_jsgf_string("commands", grammar)
         self._grammar.activate_search("commands")
-        self._keywords = Decoder(dict=str(model / "keywords.dict"), **options)
         with tempfile.NamedTemporaryFile(
             mode="w", encoding="utf-8"
         ) as keywords:

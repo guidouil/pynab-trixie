@@ -92,3 +92,6 @@ msgstr "Enregistrer"
 #: templates/nab8balld/settings.html:22
 msgid "Reset"
 msgstr "Annuler"
+
+msgid "Think about your question, then hold the button, wait for the beep, say <q>T'en penses quoi Nabaztag ?</q> and release. Native voice commands are available only in French."
+msgstr "Pensez à votre question, puis maintenez le bouton, attendez le bip, dites <q>T'en penses quoi Nabaztag ?</q> et relâchez. Les commandes vocales natives sont uniquement en français."

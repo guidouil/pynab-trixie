@@ -3,6 +3,7 @@ import datetime
 import json
 import threading
 import unittest
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 from nabd.nlu import NLU
@@ -14,6 +15,20 @@ except ImportError:
 
 
 class TestNativeNLU(unittest.IsolatedAsyncioTestCase):
+    async def test_guru_uses_its_existing_service_intent(self):
+        nlu = NLU("fr_FR")
+        for phrase in (
+            "t' en penses quoi nabaztag",
+            "tu en penses quoi nabaztag",
+        ):
+            self.assertEqual(
+                await nlu.interpret(phrase), {"intent": "nab8balld/8ball"}
+            )
+        self.assertIsNone(await nlu.interpret("penses quoi"))
+        self.assertIsNone(
+            await nlu.interpret("t' en penses quoi nabaztag et la météo")
+        )
+
     async def test_native_intents_and_tomorrow(self):
         nlu = NLU("fr_FR")
         for phrase, command in NLU.PHRASES.items():
@@ -39,6 +54,62 @@ class TestNativeNLU(unittest.IsolatedAsyncioTestCase):
             "quelle heure est il et la météo",
         ):
             self.assertIsNone(await NLU("fr_FR").interpret(phrase))
+
+
+@unittest.skipIf(ASR is None, "Optional PocketSphinx is not installed")
+class TestNativeASRCommands(unittest.TestCase):
+    def test_old_dictionaries_are_completed_without_replacing_pronunciations(
+        self,
+    ):
+        decoders = []
+        dictionaries = []
+
+        def decoder_factory(**options):
+            vocabulary = {"en": "an nn"}
+            decoder = Mock()
+            decoder.lookup_word.side_effect = vocabulary.get
+            decoder.add_word.side_effect = vocabulary.__setitem__
+
+            def compile_search(*args):
+                for word in NLU.EXTRA_PRONUNCIATIONS:
+                    self.assertIn(word, vocabulary)
+
+            decoder.add_jsgf_string.side_effect = compile_search
+            decoder.add_kws.side_effect = compile_search
+            decoders.append(decoder)
+            dictionaries.append(vocabulary)
+            return decoder
+
+        asr = object.__new__(ASR)
+        with patch("nabd.asr.Decoder", side_effect=decoder_factory):
+            asr._load_decoders()
+        self.assertEqual(len(decoders), 2)
+        for decoder, vocabulary in zip(decoders, dictionaries):
+            self.assertEqual(vocabulary["en"], "an nn")
+            self.assertNotIn(
+                "en",
+                [call.args[0] for call in decoder.add_word.call_args_list],
+            )
+            self.assertEqual(vocabulary["nabaztag"], "nn aa bb aa zz tt aa gg")
+        decoders[0].add_jsgf_string.assert_called_once()
+        decoders[1].add_kws.assert_called_once()
+
+    def test_guru_requires_its_independent_acoustic_anchor(self):
+        asr = object.__new__(ASR)
+        asr._grammar = Mock()
+        asr._keywords = Mock()
+        phrase = "t' en penses quoi nabaztag"
+        asr._grammar.hyp.return_value = SimpleNamespace(hypstr=phrase)
+        for words, expected in (
+            ([], ""),
+            (["météo"], ""),
+            (["penses quoi"], phrase),
+        ):
+            with self.subTest(words=words):
+                asr._keywords.seg.return_value = [
+                    SimpleNamespace(word=word) for word in words
+                ]
+                self.assertEqual(asr._decode_sync(b"\0" * 6400), expected)
 
 
 @unittest.skipIf(ASR is None, "Optional PocketSphinx is not installed")

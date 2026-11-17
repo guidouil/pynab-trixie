@@ -179,3 +179,6 @@ msgstr "Annuler"
 #: templates/nabweatherd/settings.html:122
 msgid "Unknown server error"
 msgstr "Erreur inconnue du serveur"
+
+msgid "For native voice, hold the button, wait for the beep, say <q>La météo</q> or <q>La météo demain</q>, then release. Native voice commands are available only in French."
+msgstr "Pour la commande vocale native, maintenez le bouton, attendez le bip, dites <q>La météo</q> ou <q>La météo demain</q>, puis relâchez. Les commandes vocales natives sont uniquement en français."
