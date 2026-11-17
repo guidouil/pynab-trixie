@@ -104,6 +104,10 @@ noyau des pilotes, manifeste des sources, paquets système et Python. Le journal
 système persiste entre les démarrages, avec une limite de 32 Mio sur disque
 et 8 Mio en mémoire, pour pouvoir examiner un redémarrage ou une erreur OOM.
 
+Les téléchargements vocaux vérifiés peuvent être préchargés dans
+`/var/cache/pynab-trixie/native-asr/`. La phase `pynab` réutilise ce cache,
+contrôle de nouveau ses SHA-256 et télécharge seulement les fichiers absents.
+
 ## Calibrage
 
 La recette installe le fichier `mixer.conf.default` provenant de la révision
@@ -129,6 +133,7 @@ doivent correspondre exactement à `KERNEL`. La compilation utilise un seul
 job, contrôle noms et ABI des cinq modules, compile les trois overlays et
 exécute les assertions du mixeur avant installation. Aucun module n'est chargé
 et aucun service n'est lancé.
+Le nettoyage `image/trim-kernels.sh KERNEL` accepte également ce chroot cible armhf.
 
 Une VM Linux ou un environnement Docker privilégié avec les montages requis
 peut héberger un futur constructeur ; le Mac seul ne fournit pas le chroot

@@ -51,7 +51,8 @@ aplay -l | grep -q tagtagtagsound || fail 'Qualify TagTagTag audio before instal
 systemctl start postgresql
 [[ $(sudo -u postgres psql --dbname=postgres --tuples-only --no-align --command="SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname='pynab') OR EXISTS(SELECT 1 FROM pg_roles WHERE rolname='pynab')") == f ]] || fail 'A Pynab database or role already exists; no data will be replaced.'
 sudo -H -u "$owner" bash install.sh
-sudo -H -u "$owner" bash install-native-asr.sh
+install -d -o "$owner" -g "$(stat -c '%G' "$root")" /var/cache/pynab-trixie/native-asr
+sudo -H -u "$owner" bash install-native-asr.sh /var/cache/pynab-trixie/native-asr
 sudo -H -u "$owner" venv/bin/python manage.py check
 sudo -H -u "$owner" git rev-parse HEAD > /var/lib/pynab-trixie/source-commit
 dpkg-query -W -f='${binary:Package}\t${Version}\n' > /var/lib/pynab-trixie/packages.tsv

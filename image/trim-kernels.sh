@@ -27,7 +27,7 @@ validate_removals() {
 }
 main() {
   [[ $EUID -eq 0 && $# == 1 ]] || fail 'Usage: sudo bash image/trim-kernels.sh KERNEL'
-  [[ $(uname -s) == Linux && $(uname -m) == armv6l ]] || fail 'Native Linux ARMv6 required.'
+  [[ $(uname -s) == Linux ]] || fail 'Linux target system or chroot required.'
   . /etc/os-release
   [[ ${VERSION_CODENAME:-} == trixie && ${VERSION_ID:-} == 13 && -f /etc/rpi-issue ]] || fail 'Raspberry Pi OS Trixie required.'
   [[ $(dpkg --print-architecture) == armhf ]] || fail 'Native armhf required.'
