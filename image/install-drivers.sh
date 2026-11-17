@@ -71,7 +71,7 @@ else:
     data += block
 target.write_bytes(data)
 PY
-destination=/lib/modules/$kernel/updates/nabaztag
+destination=$(readlink -f "/lib/modules/$kernel")/updates/nabaztag
 install -d -m 755 "$destination" /boot/firmware/overlays /var/lib/tagtagtag-sound /var/lib/pynab-trixie
 for module in "${modules[@]}"; do install -m 644 "$work/$module" "$destination/"; done
 depmod -a "$kernel"

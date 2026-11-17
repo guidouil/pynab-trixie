@@ -16,6 +16,54 @@ spec.loader.exec_module(fetch)
 
 
 class RecipeTest(unittest.TestCase):
+    def test_module_priority_uses_the_canonical_merged_usr_path(self):
+        lines = (HERE / "install-drivers.sh").read_text().splitlines()
+        destination = next(s for s in lines if s.startswith("destination="))
+        priority = next(
+            s for s in lines if "Installed module priority differs:" in s
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            kernel = "6.18.60+rpt-rpi-v6"
+            modules = root / "usr/lib/modules" / kernel
+            installed = modules / "updates/nabaztag/tagtagtag-ears.ko"
+            other = modules / "kernel/tagtagtag-ears.ko"
+            for module in (installed, other):
+                module.parent.mkdir(parents=True, exist_ok=True)
+                module.write_bytes(b"module fixture")
+            (root / "lib").symlink_to("usr/lib", target_is_directory=True)
+            calculation = destination.replace(
+                "/lib/modules/", str(root / "lib/modules") + "/"
+            )
+            script = (
+                "set -eu\nkernel=$1\nfixture_module=$2\nname=tagtagtag_ears\n"
+                'modinfo() { printf "%s\\n" "$fixture_module"; }\n'
+                "fail() { exit 1; }\n" + calculation + "\n" + priority
+            )
+            for selected, expected in ((installed, 0), (other, 1)):
+                with self.subTest(module=selected):
+                    modinfo_path = (
+                        root
+                        / "lib/modules"
+                        / kernel
+                        / selected.relative_to(modules)
+                    )
+                    result = subprocess.run(
+                        [
+                            "bash",
+                            "-c",
+                            script,
+                            "bash",
+                            kernel,
+                            str(modinfo_path),
+                        ],
+                        text=True,
+                        capture_output=True,
+                    )
+                    self.assertEqual(
+                        result.returncode, expected, result.stderr
+                    )
+
     def test_kernel_trim_selects_only_reviewed_installed_families(self):
         packages = """ii linux-image-rpi-v6:armhf
 ii linux-headers-6.18.60+rpt-rpi-v6

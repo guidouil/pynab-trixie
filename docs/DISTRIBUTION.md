@@ -107,6 +107,10 @@ et 8 Mio en mémoire, pour pouvoir examiner un redémarrage ou une erreur OOM.
 Les téléchargements vocaux vérifiés peuvent être préchargés dans
 `/var/cache/pynab-trixie/native-asr/`. La phase `pynab` réutilise ce cache,
 contrôle de nouveau ses SHA-256 et télécharge seulement les fichiers absents.
+Un cache facultatif de wheels sous `/var/cache/pynab-trixie/python/` est aussi
+réutilisé pour l'installation Python. Il doit contenir des wheels universelles
+ou Python 3.13/ARMv6 lisibles par le propriétaire. Les dépendances absentes et
+les références par URL directe peuvent encore nécessiter Internet.
 
 ## Calibrage
 
