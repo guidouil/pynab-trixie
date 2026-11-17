@@ -28,7 +28,7 @@ class ASR:
         "comment vas": ("mood", 1e-20),
         "comment ça va": ("mood", 1e-20),
         "humeur": ("mood", 1e-5),
-        "rire": ("mood", 1e-10),
+        "rire": ("mood", 1e-20),
         "guili guili": ("mood", 1e-20),
         "dis lapin": ("8ball", 1e-20),
         "penses quoi": ("8ball", 1e-20),
