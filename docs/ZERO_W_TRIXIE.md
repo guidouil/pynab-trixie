@@ -77,15 +77,18 @@ est limitée à 15 secondes. Le clic court du relais Mac reste disponible.
 Le microphone est configuré avant le bip ; capture et lecture utilisent des
 futures distinctes. Les échantillons du bip sont ignorés, puis la parole est
 acceptée jusqu'au relâchement.
-Les dix intentions historiques françaises sont rétablies : heure, sommeil,
+Le vocabulaire court de 28 formulations couvre dix actions : heure, sommeil,
 météo, qualité de l'air, taï-chi, Gourou, surprise/humeur, carotte, présentation
-et anniversaire. Les formulations et les limites des services sont décrites dans
-[VOICE_COMMANDS.md](VOICE_COMMANDS.md). La reconnaissance fonctionne sans Internet,
-mais la météo et la qualité de l'air gardent leur accès Internet habituel.
+et anniversaire, dont « Fais-moi rire » et « Que sais-tu faire ? ». Les phrases
+exactes et les limites des services sont décrites dans
+[VOICE_COMMANDS.md](VOICE_COMMANDS.md). Les longues variantes historiques et les
+prénoms d'anniversaire ont été retirés pour limiter le travail du décodeur sur
+le Zero W. La reconnaissance fonctionne sans Internet ; la météo et la qualité
+de l'air gardent leur accès Internet habituel.
 Les prévisions météo restent limitées à aujourd'hui ou demain, sans détail par
-heure ; la qualité de l'air annonce toujours aujourd'hui. L'anniversaire accepte
-les prénoms historiques, mais sa réponse reste générique. Les commandes anglaises
-et la conversation libre de l'application Mac sont hors de ce parcours natif.
+heure ; la qualité de l'air annonce toujours aujourd'hui. Les anniversaires
+restent génériques. Les commandes anglaises et la conversation libre de
+l'application Mac sont hors de ce parcours natif.
 
 La grammaire est confirmée par un détecteur acoustique de mots de commande :
 une grammaire seule forcerait des phrases hors sujet vers une commande.

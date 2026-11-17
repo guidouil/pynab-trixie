@@ -241,10 +241,9 @@ class NabIO(object, metaclass=abc.ABCMeta):
 
     async def end_acquisition(self):
         """
-        Play acquired sound and call callback with finalize.
+        Stop the microphone and finalize capture without delaying decoding.
         """
         await self.sound.stop_recording()
-        await self.sound.play_list(["asr/acquired.mp3"], False)
 
     async def asr_failed(self):
         """

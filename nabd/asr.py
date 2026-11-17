@@ -6,9 +6,11 @@ import struct
 import sys
 import tempfile
 import threading
+from array import array
+from math import sumprod
 from pathlib import Path
 
-from pocketsphinx import Decoder
+from pocketsphinx import Decoder, Vad
 
 from .nlu import NLU
 
@@ -22,59 +24,24 @@ class ASR:
         "quelle heure": ("clock", 1e-20),
         "heure": ("clock", 1e-5),
         "météo": ("weather", 1e-5),
-        "météos": ("weather", 1e-5),
         "quel temps": ("weather", 1e-20),
         "comment vas": ("mood", 1e-20),
         "comment ça va": ("mood", 1e-20),
         "humeur": ("mood", 1e-5),
-        "penses quoi": ("8ball", 1e-20),
-        "gourou": ("8ball", 1e-10),
+        "rire": ("mood", 1e-10),
+        "guili guili": ("mood", 1e-20),
         "dis lapin": ("8ball", 1e-20),
-        "dis moi lapin": ("8ball", 1e-20),
-        "dis nabaztag": ("8ball", 1e-20),
-        "dis moi nabaztag": ("8ball", 1e-20),
-        "à ton avis": ("8ball", 1e-20),
-        "qu' en penses": ("8ball", 1e-20),
-        "qu' est ce que t' en penses": ("8ball", 1e-20),
-        "horloge": ("clock", 1e-10),
-        "air": ("airquality", 1e-10),
+        "penses quoi": ("8ball", 1e-20),
         "qualité": ("airquality", 1e-10),
-        "pollué": ("airquality", 1e-10),
-        "taux": ("airquality", 1e-10),
         "tai chi": ("taichi", 1e-20),
         "dodo": ("sleep", 1e-10),
-        "dormir": ("sleep", 1e-10),
         "au lit": ("sleep", 1e-20),
-        "se coucher": ("sleep", 1e-20),
-        "c' est l' heure": ("sleep", 1e-20),
-        "guili guili": ("mood", 1e-20),
-        "chatouille": ("mood", 1e-10),
-        "rire": ("mood", 1e-10),
-        "raconte": ("mood", 1e-10),
-        "surprise": ("mood", 1e-10),
-        "comment te sens": ("mood", 1e-20),
+        "dormir": ("sleep", 1e-10),
         "carotte": ("carrot", 1e-10),
-        "carottes": ("carrot", 1e-10),
-        "sais faire": ("autopromo", 1e-20),
         "sais tu faire": ("autopromo", 1e-20),
+        "tu faire": ("autopromo", 1e-20),
+        "sais faire": ("autopromo", 1e-20),
         "anniversaire": ("birthday", 1e-10),
-        "pleuvra": ("weather", 1e-10),
-        "pleuvoir": ("weather", 1e-10),
-        "pleut": ("weather", 1e-10),
-        "faire chaud": ("weather", 1e-20),
-        "fera chaud": ("weather", 1e-20),
-        "fait chaud": ("weather", 1e-20),
-        "faire froid": ("weather", 1e-20),
-        "fera froid": ("weather", 1e-20),
-        "fait froid": ("weather", 1e-20),
-        "faire beau": ("weather", 1e-20),
-        "fera beau": ("weather", 1e-20),
-        "éclaircies": ("weather", 1e-10),
-        "parapluie": ("weather", 1e-10),
-        "besoin d' un": ("weather", 1e-20),
-        "sortir en": ("weather", 1e-20),
-        "mettre un short": ("weather", 1e-20),
-        "neiger": ("weather", 1e-10),
     }
     PRONUNCIATIONS = (
         dict(
@@ -113,13 +80,18 @@ class ASR:
             "lm": None,
             "loglevel": "FATAL",
         }
-        self._grammar = Decoder(dict=str(model / "commands.dict"), **options)
+        self._grammar = Decoder(
+            dict=str(model / "commands.dict"), bestpath=False, ds=2, **options
+        )
         self._keywords = Decoder(dict=str(model / "keywords.dict"), **options)
+        required = set(
+            " ".join([*NLU.PHRASES, *self.ANCHORS, *NLU.NOISE, "et"]).split()
+        )
         for decoder in (self._grammar, self._keywords):
             missing = [
                 (word, phones)
                 for word, phones in self.PRONUNCIATIONS.items()
-                if decoder.lookup_word(word) is None
+                if word in required and decoder.lookup_word(word) is None
             ]
             for index, (word, phones) in enumerate(missing):
                 decoder.add_word(
@@ -127,7 +99,7 @@ class ASR:
                 )
         grammar = (
             "#JSGF V1.0; grammar commands; public <request> = "
-            "<noise>+ | <command> | <command> et <command>; <command> = "
+            "<noise>+ | <command> [et <command>]; <command> = "
             + self._command_grammar()
             + "; <noise> = "
             + " | ".join(NLU.NOISE)
@@ -146,65 +118,7 @@ class ASR:
 
     @staticmethod
     def _command_grammar():
-        # Factor equivalent suffixes inline: PocketSphinx expands rule references.
-        phrases = {tuple(phrase.split()) for phrase in NLU.PHRASES}
-        cores = {
-            phrase[
-                int(phrase[0] == "euh") : len(phrase)
-                - int(phrase[-1] == "euh")
-            ]
-            for phrase in phrases
-        }
-        hesitations = phrases == {
-            prefix + phrase + suffix
-            for phrase in cores
-            for prefix in ((), ("euh",))
-            for suffix in ((), ("euh",))
-        }
-        tree = {}
-        for phrase in cores if hesitations else phrases:
-            node = tree
-            for word in phrase:
-                node = node.setdefault(word, {})
-            node[None] = None
-        states = {}
-
-        def intern(node):
-            edges = tuple(
-                (word, intern(children))
-                for word, children in sorted(
-                    (word, child)
-                    for word, child in node.items()
-                    if word is not None
-                )
-            )
-            state = (None in node, edges)
-            return states.setdefault(state, len(states))
-
-        start = intern(tree)
-        nodes = {number: state for state, number in states.items()}
-
-        def expand(number):
-            accepting, edges = nodes[number]
-            groups = {}
-            for word, target in edges:
-                groups.setdefault(target, []).append(word)
-            choices = []
-            for target, words in groups.items():
-                head = (
-                    words[0]
-                    if len(words) == 1
-                    else "(" + " | ".join(words) + ")"
-                )
-                tail = expand(target)
-                choices.append(head + (" " + tail if tail else ""))
-            if not choices:
-                return ""
-            content = " | ".join(choices)
-            return "[" + content + "]" if accepting else "(" + content + ")"
-
-        expression = expand(start)
-        return "[euh] " + expression + " [euh]" if hesitations else expression
+        return " | ".join(NLU.PHRASES)
 
     def reset(self):
         with self._buffer_lock:
@@ -310,10 +224,13 @@ class ASR:
     def _decode_sync(self, pcm):
         if len(pcm) > self.MAX_BYTES or len(pcm) % 2 or len(pcm) < 6400:
             return ""
+        pcm = self._trim_silence(pcm)
+        if len(pcm) < 6400:
+            return ""
         if not hasattr(self, "_grammar"):
             self._load_decoders()
         # KWS needs initial silence and a final delay to detect boundary words.
-        padded = b"\0" * 9600 + pcm + b"\0" * 9600
+        padded = b"\0" * 4800 + pcm + b"\0" * 6400
         for decoder in (self._grammar, self._keywords):
             decoder.start_utt()
             try:
@@ -333,6 +250,41 @@ class ASR:
         }
         # A grammar alone forces unrelated speech into a valid command.
         return text if kind in detected else ""
+
+    @staticmethod
+    def _trim_silence(pcm):
+        vad = Vad(mode=3, sample_rate=16000, frame_length=0.03)
+        size = vad.frame_bytes
+        energies, voiced = [], []
+        for offset in range(0, len(pcm) - size + 1, size):
+            frame = pcm[offset : offset + size]
+            samples = array("h", frame)
+            energies.append(sumprod(samples, samples))
+            voiced.append(vad.is_speech(frame))
+        if not energies:
+            return pcm
+        if not any(energies):
+            return b""
+        # VAD alone also detects room hum; require three times the noise RMS.
+        threshold = max(1, 9 * sorted(energies)[(len(energies) - 1) // 5])
+        gap = int(0.15 * vad.sample_rate * 2)
+        padding = int(0.2 * vad.sample_rate * 2)
+        groups = []
+        for index, energy in enumerate(energies):
+            if not voiced[index] or energy < threshold:
+                continue
+            if groups and (index - groups[-1][1] - 1) * size <= gap:
+                groups[-1][1] = index
+                groups[-1][2] += 1
+            else:
+                groups.append([index, index, 1])
+        solid = [group for group in groups if group[2] * size >= gap]
+        if sum(group[2] * size for group in solid) < 6400:
+            return pcm
+        # Keep every solid region so a second command cannot disappear.
+        start = max(0, solid[0][0] * size - padding)
+        end = min(len(pcm), (solid[-1][1] + 1) * size + padding)
+        return pcm[start:end]
 
 
 def main():

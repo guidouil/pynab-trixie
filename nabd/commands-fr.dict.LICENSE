@@ -4,19 +4,12 @@ Source SHA-256: 40b31d1b22c4e93eb35a742dc5bf0cd4243c5966f3f306b600016a43ff55e5ec
 
 Only the words used by Pynab's French command grammar are retained. One
 pronunciation per word is selected, with the established native recognizer
-preferences for est, moi, ton and météo, and French variants for ai, aller,
-toi, on, way, jean and johnny.
-Spelling aliases use the source pronunciation of alison (alyson), brise (brize),
-clotilde (clothilde), jeremy (jérémy), mickaël (mickael), plaît (plait), météo
-(météos), and the unaccented dictionary spelling of éliane, élisa, élisabeth, élise, émile, émilie,
-éric and évelyne.
+preferences for est, moi, ton and météo, and the pronounced schwa variant for que.
 
 The following missing words have manually supplied pronunciations using the
-same French acoustic-model phone inventory: candice, coumba, cyrielle, cécilien,
-flavien, guili, imper, isa, iskander, ivor, kari, maeva, maÿlis, nabaztag, neiger,
-philémon, rafi, referais, tai, yoann, zélie and émeline. These additions allow the
-historical grammar to compile; they do not establish acoustic accuracy for every
-speaker or proper name. Existing installed pronunciations take precedence.
+same French acoustic-model phone inventory: guili, nabaztag and tai. These
+additions allow the command grammar to compile; they do not establish acoustic
+accuracy for every speaker. Existing installed pronunciations take precedence.
 
 The original dictionary's license follows in full.
 

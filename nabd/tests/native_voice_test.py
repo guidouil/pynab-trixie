@@ -42,7 +42,11 @@ class TestNativeNLU(unittest.IsolatedAsyncioTestCase):
                             datetime.date.today() + datetime.timedelta(days=1)
                         ).isoformat(),
                     )
-                elif "date" not in NLU.SLOTS.get(phrase, {}):
+                elif phrase == "la météo aujourd'hui":
+                    self.assertEqual(
+                        result["date"], datetime.date.today().isoformat()
+                    )
+                else:
                     self.assertNotIn("date", result)
 
     async def test_unknown_partial_and_multiple_commands_are_rejected(self):
@@ -109,7 +113,12 @@ class TestNativeASRCommands(unittest.TestCase):
             (["météo"], ""),
             (["penses quoi"], phrase),
         ):
-            with self.subTest(words=words):
+            with (
+                self.subTest(words=words),
+                patch.object(
+                    ASR, "_trim_silence", side_effect=lambda pcm: pcm
+                ),
+            ):
                 asr._keywords.seg.return_value = [
                     SimpleNamespace(word=word) for word in words
                 ]

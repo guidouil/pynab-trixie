@@ -72,6 +72,14 @@ class TestNativeAcquisition(unittest.IsolatedAsyncioTestCase):
         self.sound.play_list.assert_not_awaited()
         self.sound.stop_recording.assert_awaited_once()
 
+    async def test_release_finalizes_capture_without_an_extra_sound(self):
+        await NabIO.start_acquisition(self.nabio, self.callback)
+        self.sound.play_list.reset_mock()
+        await NabIO.end_acquisition(self.nabio)
+        self.assertFalse(self.recording)
+        self.callback.assert_called_once_with(b"last period", True)
+        self.sound.play_list.assert_not_awaited()
+
     async def test_cancelled_beep_closes_microphone(self):
         listening = asyncio.Event()
 

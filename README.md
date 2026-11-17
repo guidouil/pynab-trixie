@@ -33,10 +33,11 @@ le portail pour choisir son Wi-Fi. [Procédure et limites](docs/WIFI.md).
 ## Commandes vocales françaises
 
 Maintenir le bouton, attendre le bip, parler puis relâcher : « Quelle heure
-est-il ? », « La météo », « La météo demain », « Comment vas-tu ? » ou
-« T’en penses quoi Nabaztag ? ». Les dix intentions historiques françaises sont
-prises en charge : heure, sommeil, météo, qualité de l’air, taï-chi, Gourou,
-surprise/humeur, carotte, présentation et anniversaire.
+est-il ? », « La météo », « La météo demain », « Comment vas-tu ? »,
+« T’en penses quoi Nabaztag ? », « Fais-moi rire » ou « Que sais-tu faire ? ».
+Un vocabulaire court de 28 formulations couvre dix actions : heure, sommeil,
+météo, qualité de l’air, taï-chi, Gourou, surprise/humeur, carotte, présentation
+et anniversaire. Utiliser une seule formulation de la liste par appui.
 PocketSphinx fonctionne localement, sans écoute permanente ; la météo nécessite
 son accès Internet habituel. La capture dure au plus 15 secondes.
 [Formulations prises en charge et limites](docs/VOICE_COMMANDS.md).

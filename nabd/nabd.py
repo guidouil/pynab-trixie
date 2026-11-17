@@ -1175,6 +1175,7 @@ class Nabd:
                 )
             except asyncio.TimeoutError:
                 pass
+            decode_started = time.monotonic()
             audio_task = asyncio.create_task(self.nabio.end_acquisition())
             await asyncio.shield(audio_task)
             audio_task = None
@@ -1184,6 +1185,11 @@ class Nabd:
             logging.debug("ASR string: %s", decoded_str)
             response = await nlu.interpret(decoded_str)
             logging.debug("NLU response: %s", response)
+            logging.info(
+                "Native voice decoded in %.3fs: %s",
+                time.monotonic() - decode_started,
+                response.get("intent") if response else "no match",
+            )
             failed = response is None
         except Exception:
             response = None

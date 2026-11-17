@@ -10,6 +10,55 @@ from nabd.tests.utils import close_old_async_connections
 from nabsurprised.nabsurprised import NabSurprised
 
 
+class TestNativeSurpriseResponse(unittest.IsolatedAsyncioTestCase):
+    async def test_voice_goes_straight_to_the_requested_audio(self):
+        for kind in ("surprise", "autopromo", "carrot", "birthday"):
+            with self.subTest(kind=kind):
+                service = NabSurprised()
+                service.writer = MockWriter()
+                await service.process_nabd_packet(
+                    {
+                        "type": "asr_event",
+                        "nlu": {"intent": f"nabsurprised/{kind}"},
+                    }
+                )
+                self.assertEqual(len(service.writer.written), 1)
+                packet = json.loads(service.writer.written[0])
+                self.assertNotIn("signature", packet)
+                directory = "" if kind == "surprise" else kind + "/"
+                self.assertEqual(
+                    packet["body"],
+                    [{"audio": [f"nabsurprised/{directory}*.mp3"]}],
+                )
+
+    async def test_scheduled_response_keeps_its_signature(self):
+        service = NabSurprised()
+        service.writer = MockWriter()
+        await service.perform(datetime.datetime(2018, 11, 1), None, None)
+        packet = json.loads(service.writer.written[0])
+        self.assertEqual(
+            packet["signature"],
+            {"audio": ["nabsurprised/respirations/*.mp3"]},
+        )
+
+    async def test_rfid_response_keeps_its_signature(self):
+        service = NabSurprised()
+        service.writer = MockWriter()
+        await service.process_nabd_packet(
+            {
+                "type": "rfid_event",
+                "event": "detected",
+                "app": "nabsurprised",
+                "data": "\x00\x01",
+            }
+        )
+        packet = json.loads(service.writer.written[0])
+        self.assertEqual(
+            packet["signature"],
+            {"audio": ["nabsurprised/respirations/*.mp3"]},
+        )
+
+
 @pytest.mark.django_db
 class TestNabSurprised(unittest.TestCase):
     def tearDown(self):

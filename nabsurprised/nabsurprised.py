@@ -40,7 +40,9 @@ class NabSurprised(NabRandomService):
     async def perform(self, expiration, args, config):
         await self._do_perform(expiration, None, None)
 
-    async def _do_perform(self, expiration, lang, type):
+    async def _do_perform(
+        self, expiration, lang, type, *, with_signature=True
+    ):
         if lang is None or lang == "default":
             lang_prefix = ""
         else:
@@ -60,9 +62,13 @@ class NabSurprised(NabRandomService):
         if expiration is None:
             now = datetime.datetime.now(datetime.timezone.utc)
             expiration = now + datetime.timedelta(minutes=1)
+        signature = (
+            '"signature":{"audio":["nabsurprised/respirations/*.mp3"]},'
+            if with_signature
+            else ""
+        )
         packet = (
-            f'{{"type":"message",'
-            f'"signature":{{"audio":["nabsurprised/respirations/*.mp3"]}},'
+            f'{{"type":"message",{signature}'
             f'"body":[{{"audio":["{path}"]}}],'
             f'"expiration":"{expiration.isoformat()}"}}\r\n'
         )
@@ -95,7 +101,7 @@ class NabSurprised(NabRandomService):
             intent = packet["nlu"]["intent"]
             if intent in NabSurprised.NLU_INTENTS:
                 _, type = intent.split("/")
-                await self._do_perform(None, None, type)
+                await self._do_perform(None, None, type, with_signature=False)
         elif (
             packet["type"] == "rfid_event"
             and packet["app"] == "nabsurprised"

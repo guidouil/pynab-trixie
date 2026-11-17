@@ -136,8 +136,5 @@ msgstr "Annuler"
 msgid "Unknown server error"
 msgstr "Erreur inconnue du serveur"
 
-msgid "Air quality cannot currently be requested by voice. Use the Today button below."
-msgstr "La qualité de l'air ne peut actuellement pas être demandée à la voix. Utilisez le bouton Aujourd'hui ci-dessous."
-
-msgid "For native voice, hold the button, wait for the beep, say <q>Qualité de l'air</q>, then release. Native voice commands are available only in French. The report is always for today, even if you request another date."
-msgstr "Pour la commande vocale native, maintenez le bouton, attendez le bip, dites <q>Qualité de l'air</q>, puis relâchez. Les commandes vocales natives sont uniquement en français. Le bulletin porte toujours sur aujourd'hui, même si vous demandez une autre date."
+msgid "For native voice, hold the button, wait for the beep, say <q>Qualité de l'air</q>, then release. Native voice commands are available only in French. The report is for today."
+msgstr "Pour la commande vocale native, maintenez le bouton, attendez le bip, dites <q>Qualité de l'air</q>, puis relâchez. Les commandes vocales natives sont uniquement en français. Le bulletin porte sur aujourd'hui."
