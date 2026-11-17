@@ -9,7 +9,7 @@ branches.
 Les services Pynab restent dans ce dépôt. Les pilotes audio, oreilles et CR14
 sont des sources upstream épinglées accompagnées de patches dans `image/` ;
 ils ne nécessitent pas de forks indépendants pour cette version. Le bouton
-web ne met à jour ni noyau, ni pilotes, ni NabBlockly.
+web ne met à jour ni noyau, ni pilotes.
 
 ## Avant une mise à jour
 

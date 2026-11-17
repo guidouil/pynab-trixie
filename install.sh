@@ -338,26 +338,6 @@ END
   sudo install -o root -g root -m 0644 /tmp/pynab.service /etc/avahi/services/pynab.service
   sudo rm -f /tmp/pynab.service
 fi
-if [ -d "${root_dir}/nabblockly" ] && [ ! -f "/etc/avahi/services/nabblocky.service" ]; then
-  echo "Setting up Avahi service for NabBlockly"
-  cat > '/tmp/nabblocky.service' <<- END
-<?xml version="1.0" standalone='no'?><!--*-nxml-*-->
-<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
-<!-- See avahi.service(5) for more information about this configuration file -->
-<service-group>
-  <name replace-wildcards="yes">NabBlockly (%h)</name>
-  <service>
-    <type>_http._tcp</type>
-    <port>8080</port>
-    <txt-record>vendor=Paul Guyot</txt-record>
-    <txt-record>model=tag:tag:tag</txt-record>
-  </service>
-</service-group>
-END
-  sudo install -o root -g root -m 0644 /tmp/nabblocky.service /etc/avahi/services/nabblocky.service
-  sudo rm -f /tmp/nabblocky.service
-fi
-
 sudo install -d -o "${uid}" -g "${gid}" -m 0700 /var/lib/pynab/update
 
 # The updater restores only services that were active before the update.

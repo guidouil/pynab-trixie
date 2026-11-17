@@ -308,16 +308,6 @@ else
 fi
 sudo git config --system --add safe.directory ${inst_dir}/pynab
 
-echo "Installing NabBlockly."
-sudo apt-get install --no-install-recommends -y erlang-base erlang-dev erlang-inets erlang-tools erlang-xmerl
-cd ${inst_dir}/pynab
-sudo -u ${owner} git clone --depth 1 -b ${driver_branch} https://github.com/pguyot/nabblockly
-sudo git config --system --add safe.directory ${inst_dir}/pynab/nabblockly
-cd ${inst_dir}/pynab/nabblockly
-sudo -u ${owner} wget https://github.com/erlang/rebar3/releases/download/3.24.0/rebar3 && chmod +x rebar3
-sudo apt-get install --no-install-recommends -y g++
-sudo -u ${owner} ./rebar3 release
-
 echo "Running Pynab install script."
 sudo apt-get install --no-install-recommends -y alsa-utils xz-utils avahi-daemon
 cd ${inst_dir}/pynab

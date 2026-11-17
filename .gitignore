@@ -110,8 +110,6 @@ venv.bak/
 # tmp
 tmp/
 
-# nabblockly subdirectory
-/nabblockly/
 # Downloaded French acoustic model; prepared by install-native-asr.sh.
 /nabd/asr-fr/
 /nabd/.asr-fr.*/

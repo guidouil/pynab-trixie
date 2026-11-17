@@ -44,7 +44,7 @@ son accès Internet habituel. La capture dure au plus 15 secondes.
 
 La conversation libre et la radio depuis le Mac utilisent l'application séparée
 [Nabaztag IA](https://github.com/guidouil/nabaztag_IA) et les accès de chaque
-utilisateur. Snips/Kaldi, Home Assistant et NabBlockly ne sont pas activés par
+utilisateur. Snips/Kaldi et Home Assistant ne sont pas activés par
 cette préparation Zero W.
 
 ## Mettre à jour

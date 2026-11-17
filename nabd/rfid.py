@@ -40,7 +40,6 @@ TAG_APPLICATIONS = {
     TAG_APPLICATION_NONE: "none",
     nab8balld.NABAZTAG_RFID_APPLICATION_ID: "nab8balld",  # 1
     2: "nabairqualityd",
-    3: "nabblockly",
     nabbookd.NABAZTAG_RFID_APPLICATION_ID: "nabbookd",  # 4
     nabclockd.NABAZTAG_RFID_APPLICATION_ID: "nabclockd",  # 5
     6: "nabmastodond",
