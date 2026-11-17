@@ -1,8 +1,9 @@
 [project]
-requires-python = ">=3.13,<3.15"
+requires-python = ">=3.13,<3.14"
 
 [tool.black]
 line-length = 79
+target-version = ["py313"]
 
 [tool.mypy]
 plugins = ["mypy_django_plugin.main"]

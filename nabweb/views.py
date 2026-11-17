@@ -6,18 +6,17 @@ import json
 import os
 import platform
 import re
-import subprocess
 
 from django.apps import apps
 from django.conf import settings
 from django.core.cache import cache
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import render
 from django.utils import translation
 from django.utils.translation import to_language, to_locale
 from django.views.generic import View
 
-from nabcommon import hardware
+from nabcommon import hardware, update
 from nabcommon.nabservice import NabService
 from nabd.i18n import Config
 
@@ -458,41 +457,17 @@ class NabWebHardwareTestView(View):
 
 
 class GitInfo:
-    EXPECTED_PYNAB_UPSTREAMS = {"origin/master", "origin/release"}
-    REPOSITORIES = {
-        "pynab": ".",
-        "sound_driver": "../wm8960",
-        "ears_driver": "../tagtagtag-ears/",
-        "rfid_driver": "../cr14/",
-        "nfc_driver": "../st25r391x/",
-        "nabblockly": "nabblockly",
-    }
-    NAMES = {
-        "pynab": "Pynab",
-        "sound_driver": "Tagtagtag sound card driver",
-        "ears_driver": "Ears driver",
-        "rfid_driver": "RFID reader driver",
-        "nfc_driver": "NFC card driver",
-        "nabblockly": "NabBlockly",
-    }
+    REPOSITORIES = {"pynab": "."}
+    NAMES = {"pynab": "Pynab Trixie"}
 
     @staticmethod
     def get_root_dir():
-        root_dir = (
-            os.popen(
-                "sed -nE -e 's|WorkingDirectory=(.+)|\\1|p' "
-                "< /lib/systemd/system/nabd.service"
-            )
-            .read()
-            .rstrip()
-        )
-        if root_dir == "":
-            root_dir = os.path.dirname(os.path.dirname(__file__))
-        return root_dir
+        return os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
     @staticmethod
     def get_repository_info(repository, cached=False, force=False):
-        relpath = GitInfo.REPOSITORIES[repository]
+        if repository not in GitInfo.REPOSITORIES:
+            raise Http404("Unknown update repository")
         cache_key = f"git/info/{repository}"
         if not force:
             info = cache.get(cache_key)
@@ -500,118 +475,24 @@ class GitInfo:
                 return info
         if cached:
             return None
-        info = GitInfo.do_get_repository_info(repository, relpath)
-        timeout = 600
-        if info["status"] == "ok":
-            timeout = 86400
-        cache.set(cache_key, info, timeout)
+        info = GitInfo.do_get_repository_info(repository, ".")
+        cache.set(cache_key, info, 60)
         return info
 
     @staticmethod
     def do_get_repository_info(repository, relpath):
-        root_dir = GitInfo.get_root_dir()
-        if root_dir is None:
-            return {
-                "status": "error",
-                "message": "Cannot locate Pynab installation from "
-                "OS systemd services.",
-                "info_date": datetime.datetime.now(),
-                "name": GitInfo.NAMES[repository],
-            }
-        repo_dir = root_dir + "/" + relpath
+        info = {
+            "name": GitInfo.NAMES[repository],
+            "info_date": datetime.datetime.now(),
+            "url": update.REPOSITORY_URL,
+            "tracks_expected_upstream": False,
+            "updatable": False,
+        }
         try:
-            repo_owner = str(os.stat(repo_dir).st_uid)
-        except FileNotFoundError:
-            return {
-                "status": "error",
-                "message": "Repository directory not found.",
-                "info_date": datetime.datetime.now(),
-                "name": GitInfo.NAMES[repository],
-            }
-        head_sha1 = (
-            os.popen(f"git -C {repo_dir} rev-parse HEAD").read().rstrip()
-        )
-        if head_sha1 == "":
-            return {
-                "status": "error",
-                "message": "Cannot get HEAD - not a git repository?",
-                "info_date": datetime.datetime.now(),
-                "name": GitInfo.NAMES[repository],
-            }
-        info = {}
-        info["head"] = head_sha1
-        info["branch"] = (
-            os.popen(f"git -C {repo_dir} rev-parse --abbrev-ref HEAD")
-            .read()
-            .rstrip()
-        )
-        upstream_branch = (
-            os.popen(
-                f"git -C {repo_dir} rev-parse --abbrev-ref @{{upstream}} "
-                f"2>/dev/null"
-            )
-            .read()
-            .rstrip()
-        )
-        # note: upstream_branch will be "" if on purely local branch
-        info["upstream_branch"] = upstream_branch
-        info["tracks_expected_upstream"] = (
-            repository != "pynab"
-            or upstream_branch in GitInfo.EXPECTED_PYNAB_UPSTREAMS
-        )
-        remote = upstream_branch.split("/")[0]
-        # note: url will be "" if on purely local branch
-        info["url"] = (
-            os.popen(f"git -C {repo_dir} remote get-url {remote} 2>/dev/null")
-            .read()
-            .rstrip()
-        )
-        info["local_changes"] = (
-            os.popen(
-                f"(git -C {repo_dir} status -s) >/dev/null && "
-                f"git -C {repo_dir} diff-index --quiet HEAD -- || "
-                f"echo 'local_changes' "
-            )
-            .read()
-            .strip()
-            != ""
-        )
-        commits_count = (
-            os.popen(
-                f"sudo -u \\#{repo_owner} "
-                f"git -C {repo_dir} fetch -t -f >/dev/null && "
-                f"git -C {repo_dir} rev-list --count HEAD..{upstream_branch}"
-            )
-            .read()
-            .rstrip()
-        )
-        local_commits_count = (
-            os.popen(
-                f"git -C {repo_dir} rev-list --count {upstream_branch}..HEAD"
-            )
-            .read()
-            .rstrip()
-        )
-        if commits_count == "":
-            info["status"] = "error"
-            info["message"] = (
-                "Cannot get number of commits from upstream. "
-                "Not connected to the internet?"
-            )
-        else:
-            info["status"] = "ok"
-            info["commits_count"] = int(commits_count)
-            info["local_commits_count"] = int(local_commits_count)
-        info["tag"] = (
-            os.popen(
-                f"git -C {repo_dir} describe --long --tags --always "
-                f"2>/dev/null"
-            )
-            .read()
-            .strip()
-        )
-        info["info_date"] = datetime.datetime.now()
-        info["name"] = GitInfo.NAMES[repository]
+            info.update(update.Repository(GitInfo.get_root_dir()).inspect())
+            info["updatable"] = info["commits_count"] > 0
+        except (OSError, update.UpdateError) as error:
+            info.update(status="error", message=str(error))
         return info
 
 
@@ -621,129 +502,51 @@ class NabWebUpgradeView(BaseView):
 
     def get_context(self):
         context = super().get_context()
-        last_check = None
-        partial = False
-        pynab_info = GitInfo.get_repository_info("pynab")
-        for repository in GitInfo.REPOSITORIES.keys():
-            info = GitInfo.get_repository_info(repository, cached=True)
-            if info is None:
-                partial = True
-                continue
-            context[repository] = info
-            if last_check is None:
-                last_check = info["info_date"]
-            else:
-                last_check = min(last_check, info["info_date"])
-        updatable = (
-            "commits_count" in pynab_info
-            and pynab_info["commits_count"] > 0
-            and "local_commits_count" in pynab_info
-            and pynab_info["local_commits_count"] == 0
+        info = GitInfo.get_repository_info("pynab")
+        context.update(
+            pynab=info,
+            updatable=info["updatable"],
+            last_check=info["info_date"],
+            update_state=update.read_status(),
         )
-        context["partial"] = partial
-        context["updatable"] = updatable
-        context["last_check"] = last_check
         return context
 
 
 class NabWebUpgradeRepositoryInfoView(View):
     def get(self, request, *args, **kwargs):
-        repository = kwargs.get("repository")
-        repo_info = GitInfo.get_repository_info(repository)
-        pynab_info = GitInfo.get_repository_info("pynab", cached=True)
-        updatable = (
-            pynab_info is not None
-            and "commits_count" in pynab_info
-            and pynab_info["commits_count"] > 0
-            and "local_commits_count" in pynab_info
-            and pynab_info["local_commits_count"] == 0
+        info = GitInfo.get_repository_info(kwargs.get("repository"))
+        return render(
+            request,
+            "nabweb/upgrade/_repository.html",
+            context={"repo": info, "updatable": info["updatable"]},
         )
-        template_name = "nabweb/upgrade/_repository.html"
-        context = {"repo": repo_info, "updatable": updatable}
-        return render(request, template_name, context=context)
 
 
 class NabWebUpgradeCheckNowView(View):
     def post(self, request, *args, **kwargs):
-        for repository in GitInfo.REPOSITORIES.keys():
-            GitInfo.get_repository_info(repository, force=True)
-        return JsonResponse({"status": "ok"})
+        info = GitInfo.get_repository_info("pynab", force=True)
+        return JsonResponse({"status": info["status"]})
 
 
 class NabWebUpgradeStatusView(View):
     def get(self, request, *args, **kwargs):
-        repo_info = GitInfo.get_repository_info("pynab")
-        return JsonResponse(repo_info)
+        return JsonResponse(GitInfo.get_repository_info("pynab"))
 
 
 class NabWebUpgradeNowView(View):
-    root_owner = "1000"
-
     def get(self, request, *args, **kwargs):
-        step = (
-            os.popen(
-                f"sudo -u \\#{self.root_owner} "
-                f"flock -n /tmp/pynab.upgrade echo 'Not upgrading' "
-                f"|| cat /tmp/pynab.upgrade"
-            )
-            .read()
-            .rstrip()
-        )
-        if step == "Not upgrading":
-            return JsonResponse({"status": "done"})
-        else:
-            return JsonResponse({"status": "ok", "message": step})
+        return JsonResponse(update.read_status())
 
     def post(self, request, *args, **kwargs):
-        root_dir = GitInfo.get_root_dir()
-        if root_dir is None:
-            return {
-                "status": "error",
-                "message": "Cannot locate Pynab installation from "
-                "OS systemd services.",
-            }
         try:
-            self.root_owner = str(os.stat(root_dir).st_uid)
-        except FileNotFoundError:
-            return {
-                "status": "error",
-                "message": "Pynab installation directory not found.",
-            }
-        locked = (
-            os.popen(
-                f"sudo -u \\#{self.root_owner} "
-                f"flock -n /tmp/pynab.upgrade echo 'OK' "
-                f"|| echo 'Locked'"
+            update.start_upgrade(GitInfo.get_root_dir())
+        except (OSError, update.UpdateError) as error:
+            return JsonResponse(
+                {"status": "error", "message": str(error)},
+                status=409,
             )
-            .read()
-            .rstrip()
-        )
-        if locked == "OK":
-            command = [
-                "/usr/bin/nohup",
-                "sudo",
-                "-u",
-                f"#{self.root_owner}",
-                "flock",
-                "/tmp/pynab.upgrade",
-                "bash",
-                f"{root_dir}/upgrade.sh",
-            ]
-            subprocess.Popen(
-                command,
-                stdout=open("/tmp/pynab-upgrade-stdout.log", "w"),
-                stderr=open("/tmp/pynab-upgrade-stderr.log", "w"),
-                preexec_fn=os.setpgrp,
-            )
-            return JsonResponse({"status": "ok"})
-        if locked == "Locked":
-            return JsonResponse({"status": "ok"})
-        return JsonResponse(
-            {
-                "status": "error",
-                "message": "Could not acquire lock, a problem occurred.",
-            }
-        )
+        cache.delete("git/info/pynab")
+        return JsonResponse({"status": "ok"})
 
 
 class NabWebShutdownView(View):

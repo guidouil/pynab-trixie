@@ -1,0 +1,15 @@
+[Unit]
+Description=Check Nabaztag boot button for Wi-Fi setup
+Wants=nabboot.service
+After=nabboot.service
+Before=comitup.service nabd.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+WorkingDirectory=/opt/pynab
+ExecStart=/usr/bin/python3 /opt/pynab/network/wifi_boot.py
+
+[Install]
+WantedBy=multi-user.target

@@ -3,9 +3,8 @@ import time
 import wave
 from concurrent.futures import ThreadPoolExecutor
 
-from mpg123 import Mpg123  # type: ignore
-
 from .cancel import wait_with_cancel_event
+from .mpg123 import Mpg123
 from .sound import Sound
 
 
@@ -26,11 +25,11 @@ class SoundVirtual(Sound):
                     duration = frames / float(rate)
                     time.sleep(duration)
             elif filename.endswith(".mp3"):
-                mp3 = Mpg123(filename)
-                rate, channels, encoding = mp3.get_format()
-                frames = mp3.length()
-                duration = frames / float(rate)
-                time.sleep(duration)
+                with Mpg123(filename) as mp3:
+                    rate, channels, encoding = mp3.get_format()
+                    frames = mp3.length()
+                    duration = frames / float(rate)
+                    time.sleep(duration)
         finally:
             self.currently_playing = False
             self.nabio_virtual.update_rabbit()

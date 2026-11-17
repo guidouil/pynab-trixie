@@ -54,6 +54,7 @@ coverage.xml
 # Django stuff:
 *.log
 local_settings.py
+.pynab-secret-key
 db.sqlite3
 
 # Flask stuff:
@@ -111,3 +112,6 @@ tmp/
 
 # nabblockly subdirectory
 /nabblockly/
+# Downloaded French acoustic model; prepared by install-native-asr.sh.
+/nabd/asr-fr/
+/nabd/.asr-fr.*/

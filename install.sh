@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -uo pipefail
+set -euo pipefail
 trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
 # makerfaire2018: Paris Maker Faire 2018 card, only fits Nabaztag V1.
@@ -12,10 +12,6 @@ ci_chroot=0
 
 # test : user wants to run tests (good idea, makes sure sounds and leds are functional)
 test=0
-
-# Assist Satellite dependencies and daemon activation are optional because wake
-# word engines are heavier than the core Pynab runtime.
-install_assist=0
 
 # upgrade : this script is invoked from upgrade.sh, typically from the button in the web interface.
 upgrade=0
@@ -43,7 +39,7 @@ elif [ "${1:-}" == "--upgrade" ]; then
   fi
 fi
 
-if [ -z "${ci_chroot:-}" ] && [ -z "${test:-}" ]; then
+if [ $ci_chroot -eq 0 ] && [ $test -eq 0 ]; then
   model=$(grep "^Model" /proc/cpuinfo ; true)
   if [[ ! "$model" == *"Raspberry Pi Zero"* ]]; then
     echo "Installation only planned on Raspberry Pi Zero, will cowardly exit"
@@ -51,7 +47,7 @@ if [ -z "${ci_chroot:-}" ] && [ -z "${test:-}" ]; then
   fi
 fi
 
-if [ $USER == "root" ]; then
+if [ "$EUID" -eq 0 ]; then
   echo "Please run this script as a regular user with sudo privileges"
   exit 1
 fi
@@ -62,6 +58,10 @@ owner=`stat -c '%U' ${root_dir}`
 uid=`stat -c '%u' ${root_dir}`
 gid=`stat -c '%g' ${root_dir}`
 inst_dir=$(dirname ${root_dir})
+boot_config=/boot/firmware/config.txt
+if [ ! -f "$boot_config" ]; then
+  boot_config=/boot/config.txt
+fi
 
 if [ $ci_chroot -eq 0 -a $makerfaire2018 -eq 0 -a `sudo aplay -L | grep -c "tagtagtagsound"` -eq 0 ]; then
   if [ `sudo aplay -L | grep -c "hifiberry"` -gt 0 ]; then
@@ -82,128 +82,22 @@ if [ $makerfaire2018 -eq 1 ]; then
   fi
 fi
 
-build_and_install_driver() {
-  driver=${1}
-  for dir in /lib/modules/*/build
-  do
-    kernel=$(basename $(dirname ${dir}))
-    echo "Building ${driver} driver for kernel ${kernel}"
-    make KERNELRELEASE=${kernel} && sudo make install KERNELRELEASE=${kernel} && make clean KERNELRELEASE=${kernel}
-  done
-}
-
-if [ $upgrade -eq 1 -a $makerfaire2018 -eq 0 -a -d ${inst_dir}/wm8960 ]; then
-  echo "Updating sound driver - 2/12" > /tmp/pynab.upgrade
-  cd ${inst_dir}/wm8960
-  sudo chown -R ${uid}:${gid} .
-  pull=`git pull`
-  if [ "$pull" != "Already up to date." ]; then
-    build_and_install_driver wm8960
-    sudo touch /tmp/pynab.upgrade.reboot
-  fi
-fi
-
-if [ $upgrade -eq 1 ]; then
-  echo "Updating ears driver - 3/12" > /tmp/pynab.upgrade
-  if [ -d ${inst_dir}/tagtagtag-ears ]; then
-    cd ${inst_dir}/tagtagtag-ears
-    sudo chown -R ${uid}:${gid} .
-    pull=`git pull`
-    if [ "$pull" != "Already up to date." ]; then
-      build_and_install_driver tagtagtag-ears
-      sudo touch /tmp/pynab.upgrade.reboot
-    fi
-  else
-    sudo mkdir -p ${inst_dir}/tagtagtag-ears
-    sudo chown ${uid}:${gid} ${inst_dir}/tagtagtag-ears
-    git clone https://github.com/pguyot/tagtagtag-ears ${inst_dir}/tagtagtag-ears
-    cd ${inst_dir}/tagtagtag-ears
-    build_and_install_driver tagtagtag-ears
-    sudo touch /tmp/pynab.upgrade.reboot
-  fi
-else
-  if [ $ci_chroot -eq 0 -a ! -e "/dev/ear0" ]; then
-    echo "Please install ears driver https://github.com/pguyot/tagtagtag-ears"
-    exit 1
-  fi
-fi
-
-if [ $upgrade -eq 1 ]; then
-  echo "Updating RFID drivers - 4/12" > /tmp/pynab.upgrade
-  if [ -d ${inst_dir}/cr14 ]; then
-    cd ${inst_dir}/cr14
-    sudo chown -R ${uid}:${gid} .
-    pull=`git pull`
-    if [ "$pull" != "Already up to date." ]; then
-      build_and_install_driver cr14
-      sudo touch /tmp/pynab.upgrade.reboot
-    fi
-  else
-    sudo mkdir -p ${inst_dir}/cr14
-    sudo chown ${uid}:${gid} ${inst_dir}/cr14
-    git clone https://github.com/pguyot/cr14 ${inst_dir}/cr14
-    cd ${inst_dir}/cr14
-    build_and_install_driver cr14
-    sudo touch /tmp/pynab.upgrade.reboot
-  fi
-  if [ -d ${inst_dir}/st25r391x ]; then
-    cd ${inst_dir}/st25r391x
-    sudo chown -R ${uid}:${gid} .
-    pull=`git pull`
-    if [ "$pull" != "Already up to date." ]; then
-      build_and_install_driver st25r391x
-      sudo touch /tmp/pynab.upgrade.reboot
-    fi
-  else
-    sudo mkdir -p ${inst_dir}/st25r391x
-    sudo chown ${uid}:${gid} ${inst_dir}/st25r391x
-    git clone https://github.com/pguyot/st25r391x ${inst_dir}/st25r391x
-    cd ${inst_dir}/st25r391x
-    build_and_install_driver st25r391x
-    # Disable this driver as it conflicts with cr14 (nabboot will do the switch)
-    sudo sed /boot/config.txt -i -e "s/^dtoverlay=st25r391x/#dtoverlay=st25r391x/"
-    # Enable i2c-dev
-    grep -q -E "^i2c-dev" /etc/modules || printf "i2c-dev\n" | sudo tee -a /etc/modules
-    sudo touch /tmp/pynab.upgrade.reboot
-  fi
-else
-  if [ $ci_chroot -eq 0 -a ! -e "/dev/rfid0" -a ! -e "/dev/nfc0" ]; then
-    echo "If you have a TAGTAG with the original RFID card, you may want to install cr14 RFID driver https://github.com/pguyot/cr14"
-    echo "If you have a 2022 NFC card, you need to install st25r391x RFID driver https://github.com/pguyot/st25r391x"
-  fi
-fi
-
-if [ $upgrade -eq 1 ]; then
-  echo "Updating NabBlockly - 5/12" > /tmp/pynab.upgrade
-  if [ -d ${root_dir}/nabblockly ]; then
-    cd ${root_dir}/nabblockly
-    sudo chown -R ${uid}:${gid} .
-    pull=`git pull`
-    if [ "$pull" != "Already up to date." ]; then
-      ./rebar3 release
-    fi
-  else
-    echo "You may want to install NabBlockly from https://github.com/pguyot/nabblockly"
-  fi
-else
-  if [ $ci_chroot -eq 0 -a ! -d "${root_dir}/nabblockly" ]; then
-    echo "You may want to install NabBlockly from https://github.com/pguyot/nabblockly"
-  fi
+# Kernel modules and overlays are installed from the pinned image recipe.
+if [ $ci_chroot -eq 0 ] && [ ! -e /dev/ear0 ]; then
+  echo "Install the pinned TagTagTag drivers first; see docs/DISTRIBUTION.md."
+  exit 1
 fi
 
 cd ${root_dir}
-if [ $upgrade -eq 1 ]; then
-  echo "Checking Python runtime - 6/12" > /tmp/pynab.upgrade
-fi
 
 if [ -n "${PYNAB_PYTHON:-}" ]; then
   python="${PYNAB_PYTHON}"
 else
   python=""
-  for candidate in python3.14 python3.13 python3; do
+  for candidate in python3.13 python3; do
     if command -v "${candidate}" >/dev/null 2>&1 && "${candidate}" - <<PY
 import sys
-sys.exit(0 if sys.version_info >= (${min_py_major}, ${min_py_minor}) else 1)
+sys.exit(0 if sys.version_info[:2] == (${min_py_major}, ${min_py_minor}) else 1)
 PY
     then
       python="${candidate}"
@@ -225,56 +119,88 @@ PY
 )
 if ! "${python}" - <<PY
 import sys
-sys.exit(0 if sys.version_info >= (${min_py_major}, ${min_py_minor}) else 1)
+sys.exit(0 if sys.version_info[:2] == (${min_py_major}, ${min_py_minor}) else 1)
 PY
 then
-  echo "Python ${py_ver} is too old; Pynab now requires Python ${min_py_major}.${min_py_minor}+"
+  echo "This distribution requires Python ${min_py_major}.${min_py_minor}; found ${py_ver}."
   exit 1
 fi
 
 venv_cfg="venv/pyvenv.cfg"
 if [[ -f "${venv_cfg}" && "$(grep -c version\ =\ ${py_ver} ${venv_cfg})" -eq 0 ]]; then
-   # Installed virtual env does not match needed version: remove it
-   sudo rm -rf "venv"
+   echo "Existing venv uses another Python version; inspect it before rebuilding. Nothing removed." >&2
+   exit 1
 fi
 if [ ! -d "venv" ]; then
   echo "Creating Python ${py_ver} virtual environment"
-  ${python} -m venv venv
+  ${python} -m venv --system-site-packages venv
+fi
+if ! grep -q '^include-system-site-packages = true$' "$venv_cfg"; then
+  echo "The venv must expose the Raspberry Pi OS GPIO packages; recreate it with --system-site-packages."
+  exit 1
+fi
+if [ "$(uname -m)" = "armv6l" ]; then
+  venv/bin/python - <<'PY'
+from importlib.metadata import PackageNotFoundError, version
+
+import lgpio
+import RPi.GPIO
+
+version("rpi-lgpio")
+try:
+    version("RPi.GPIO")
+except PackageNotFoundError:
+    pass
+else:
+    raise SystemExit("RPi.GPIO conflicts with rpi-lgpio; remove it from this Python environment.")
+PY
 fi
 
 echo "Installing PyPi requirements"
-if [ $upgrade -eq 1 ]; then
-  echo "Updating Python requirements - 7/12" > /tmp/pynab.upgrade
-fi
 # Start with wheel which is required to compile some of the other requirements
 venv/bin/pip install --no-cache-dir wheel
-venv/bin/pip install --no-cache-dir -r requirements.txt
-if [ "${PYNAB_INSTALL_ASSIST:-0}" = "1" ]; then
-  install_assist=1
-  venv/bin/pip install --no-cache-dir -r requirements-assist.txt
+requirements_file=requirements-runtime.txt
+if [ $test -eq 1 ]; then
+  requirements_file=requirements.txt
 fi
+venv/bin/pip install --no-cache-dir -r "$requirements_file"
 
 echo "Tuning PostgreSQL memory settings for Raspberry Pi."
-sudo sed -i 's/^shared_buffers = .*/shared_buffers = 32MB/' /etc/postgresql/*/main/postgresql.conf
-sudo sed -i 's/^max_connections = .*/max_connections = 30/' /etc/postgresql/*/main/postgresql.conf
-
-trust=`sudo grep local /etc/postgresql/*/main/pg_hba.conf | grep -cE '^local +all +all +trust' || echo -n ''`
-if [ $trust -ne 1 ]; then
-  echo "Configuring PostgreSQL for trusted access"
-  sudo sed -i.orig -E -e 's|^(local +all +all +)peer$|\1trust|' /etc/postgresql/*/main/pg_hba.conf
-  trust=`sudo grep local /etc/postgresql/*/main/pg_hba.conf | grep -cE '^local +all +all +trust' || echo -n ''`
-  if [ $trust -ne 1 ]; then
-    echo "Failed to configure PostgreSQL"
-    exit 1
-  fi
-  if [ $ci_chroot -eq 1 ]; then
-    cluster_version=`echo /etc/postgresql/*/main/pg_hba.conf  | sed -E 's|/etc/postgresql/(.+)/(.+)/pg_hba.conf|\1|g'`
-    cluster_name=`echo /etc/postgresql/*/main/pg_hba.conf  | sed -E 's|/etc/postgresql/(.+)/(.+)/pg_hba.conf|\2|g'`
-    sudo -u postgres /usr/lib/postgresql/${cluster_version}/bin/pg_ctl start -D /etc/postgresql/${cluster_version}/${cluster_name}/
-  else
-    sudo systemctl restart postgresql
-  fi
+pg_configs=(/etc/postgresql/*/main/postgresql.conf)
+if [ "${#pg_configs[@]}" -ne 1 ] || [ ! -f "${pg_configs[0]}" ]; then
+  echo "Expected one PostgreSQL main cluster; install PostgreSQL on the test SD first."
+  exit 1
 fi
+pg_config="${pg_configs[0]}"
+pg_hba="${pg_config%/postgresql.conf}/pg_hba.conf"
+cluster_version=$(basename "$(dirname "$(dirname "$pg_config")")")
+sudo sed -i 's/^shared_buffers = .*/shared_buffers = 32MB/' "$pg_config"
+sudo sed -i 's/^max_connections = .*/max_connections = 30/' "$pg_config"
+if ! sudo grep -qE '^local[[:space:]]+pynab[[:space:]]+pynab[[:space:]]+trust([[:space:]]|$)' "$pg_hba"; then
+  echo "Allowing local connections only to the Pynab database as the Pynab role."
+  if [ ! -f "${pg_hba}.pynab-before" ]; then
+    sudo cp -p "$pg_hba" "${pg_hba}.pynab-before"
+  fi
+  sudo sed -i '1ilocal pynab pynab trust' "$pg_hba"
+fi
+if [ $test -eq 1 ] && ! sudo grep -qE '^local[[:space:]]+all[[:space:]]+pynab[[:space:]]+trust([[:space:]]|$)' "$pg_hba"; then
+  # Django creates a separate test database and uses postgres for maintenance.
+  sudo sed -i '1ilocal all pynab trust' "$pg_hba"
+fi
+if [ $ci_chroot -eq 1 ]; then
+  sudo pg_ctlcluster --skip-systemctl-redirect "$cluster_version" main restart
+else
+  sudo systemctl restart postgresql
+fi
+
+restart_nginx() {
+  if [[ -f /etc/systemd/system/comitup.service.d/pynab.conf ]] &&
+     ! /usr/bin/timeout 10 /usr/bin/python3 "$root_dir/network/comitup_start.py" --connected; then
+    echo "Comitup manages the Wi-Fi portal; leaving nginx state unchanged."
+    return
+  fi
+  sudo systemctl restart nginx
+}
 
 sudo sed -e "s|/opt/pynab|${root_dir}|g" < nabweb/nginx-site.conf > /tmp/nginx-site.conf
 if [ $upgrade -eq 0 ]; then
@@ -283,25 +209,24 @@ if [ $upgrade -eq 0 ]; then
     if [ -h '/etc/nginx/sites-enabled/default' ]; then
       sudo rm /etc/nginx/sites-enabled/default
     fi
-    sudo mv /tmp/nginx-site.conf /etc/nginx/sites-enabled/pynab
+    sudo install -o root -g root -m 0644 /tmp/nginx-site.conf /etc/nginx/sites-enabled/pynab
     if [ $ci_chroot -eq 0 ]; then
-      sudo systemctl restart nginx
+      restart_nginx
     fi
   else
     diff -q '/etc/nginx/sites-enabled/pynab' /tmp/nginx-site.conf >/dev/null || {
       echo "Updating Nginx configuration file"
-      sudo mv /tmp/nginx-site.conf /etc/nginx/sites-enabled/pynab
+      sudo install -o root -g root -m 0644 /tmp/nginx-site.conf /etc/nginx/sites-enabled/pynab
       if [ $ci_chroot -eq 0 ]; then
-        sudo systemctl restart nginx
+        restart_nginx
       fi
     }
   fi
 else
   echo "Restarting Nginx"
-  echo "Restarting Nginx - 8/12" > /tmp/pynab.upgrade
   if [ -e '/etc/nginx/sites-enabled/pynab' ]; then
-    sudo mv /tmp/nginx-site.conf /etc/nginx/sites-enabled/pynab
-    sudo systemctl restart nginx
+    sudo install -o root -g root -m 0644 /tmp/nginx-site.conf /etc/nginx/sites-enabled/pynab
+    restart_nginx
   fi
 fi
 sudo rm -f /tmp/nginx-site.conf
@@ -310,13 +235,12 @@ psql -U pynab -c '' 2>/dev/null || {
   echo "Creating PostgreSQL database"
   sudo -u postgres psql -U postgres -c "CREATE USER pynab"
   sudo -u postgres psql -U postgres -c "CREATE DATABASE pynab OWNER=pynab LC_COLLATE='C' LC_CTYPE='C' ENCODING='UTF-8' TEMPLATE template0"
-  sudo -u postgres psql -U postgres -c "ALTER ROLE pynab CREATEDB"
 }
+if [ $test -eq 1 ]; then
+  sudo -u postgres psql -U postgres -c "ALTER ROLE pynab CREATEDB"
+fi
 
 echo "Updating data models"
-if [ $upgrade -eq 1 ]; then
-  echo "Updating data models - 9/12" > /tmp/pynab.upgrade
-fi
 venv/bin/python manage.py migrate
 
 all_locales="-l fr_FR -l de_DE -l en_US -l en_GB -l it_IT -l es_ES -l ja_jp -l pt_BR -l de -l en -l es -l fr -l it -l ja -l pt"
@@ -325,7 +249,6 @@ echo "Updating localization messages"
 if [ $upgrade -eq 0 ]; then
   venv/bin/django-admin compilemessages ${all_locales}
 else
-  echo "Updating localization messages - 10/12" > /tmp/pynab.upgrade
   for module in nab*/locale; do
     (
       cd `dirname ${module}`
@@ -344,25 +267,27 @@ if [ $test -eq 1 ]; then
 fi
 
 if [ $ci_chroot -eq 1 ]; then
-  sudo -u postgres /usr/lib/postgresql/${cluster_version}/bin/pg_ctl stop -D /etc/postgresql/${cluster_version}/${cluster_name}/
+  sudo pg_ctlcluster --skip-systemctl-redirect "$cluster_version" main stop
 fi
 
 # copy service files
 echo "Installing service files"
-if [ $upgrade -eq 1 ]; then
-  echo "Installing service files - 11/12" > /tmp/pynab.upgrade
-fi
 for service_file in nabd/nabd.socket */*.service ; do
   name=`basename ${service_file}`
-  if [ "${name}" = "nabassistd.service" -a $install_assist -eq 0 ]; then
-    echo "Skipping ${name}; set PYNAB_INSTALL_ASSIST=1 to install Assist Satellite runtime"
+  if [ "${name}" = "nabassistd.service" ] || [ "${name}" = "nabhomeassistantd.service" ]; then
+    echo "Skipping ${name} on the Zero W migration."
     continue
   fi
   sudo sed -e "s|/opt/pynab|${root_dir}|g" -e "s|/home/pi/pynab|${root_dir}|g" < ${service_file} > /tmp/${name}
-  sudo mv /tmp/${name} /lib/systemd/system/${name}
-  sudo chown root /lib/systemd/system/${name}
-  sudo systemctl enable ${name}
+  sudo install -o root -g root -m 0644 /tmp/${name} /lib/systemd/system/${name}
+  sudo rm -f /tmp/${name}
+  if [ $upgrade -eq 0 ]; then
+    sudo systemctl enable ${name}
+  fi
 done
+if [ $ci_chroot -eq 0 ]; then
+  sudo systemctl daemon-reload
+fi
 sudo sed -e "s|/opt/pynab|${root_dir}|g" < nabboot/nabboot.py > /tmp/nabboot.py
 sudo install -d -m 0755 /lib/systemd/system-shutdown
 sudo install -o root -g root -m 0755 /tmp/nabboot.py /lib/systemd/system-shutdown/nabboot.py
@@ -381,8 +306,8 @@ cat > '/tmp/pynab' <<- END
   compress
 }
 END
-sudo mv /tmp/pynab /etc/logrotate.d/pynab
-sudo chown root:root /etc/logrotate.d/pynab
+sudo install -o root -g root -m 0644 /tmp/pynab /etc/logrotate.d/pynab
+sudo rm -f /tmp/pynab
 
 # advertise rabbit on local network
 if [ ! -f "/etc/avahi/services/pynab.service" ]; then
@@ -401,9 +326,10 @@ if [ ! -f "/etc/avahi/services/pynab.service" ]; then
   </service>
 </service-group>
 END
-  sudo mv /tmp/pynab.service /etc/avahi/services/pynab.service
+  sudo install -o root -g root -m 0644 /tmp/pynab.service /etc/avahi/services/pynab.service
+  sudo rm -f /tmp/pynab.service
 fi
-if [ ! -f "/etc/avahi/services/nabblocky.service" ]; then
+if [ -d "${root_dir}/nabblockly" ] && [ ! -f "/etc/avahi/services/nabblocky.service" ]; then
   echo "Setting up Avahi service for NabBlockly"
   cat > '/tmp/nabblocky.service' <<- END
 <?xml version="1.0" standalone='no'?><!--*-nxml-*-->
@@ -419,47 +345,24 @@ if [ ! -f "/etc/avahi/services/nabblocky.service" ]; then
   </service>
 </service-group>
 END
-  sudo mv /tmp/nabblocky.service /etc/avahi/services/nabblocky.service
+  sudo install -o root -g root -m 0644 /tmp/nabblocky.service /etc/avahi/services/nabblocky.service
+  sudo rm -f /tmp/nabblocky.service
 fi
 
-if [ -e /tmp/pynab.upgrade.reboot ]; then
-  echo "Rebooting..."
-  echo "Upgrade requires reboot, rebooting now - 12/12" > /tmp/pynab.upgrade
-  sudo rm -f /tmp/pynab.upgrade
-  sudo rm -f /tmp/pynab.upgrade.reboot
-  sudo reboot
-else
-  if [ $ci_chroot -eq 0 ]; then
-    echo "Starting services"
-    if [ $upgrade -eq 1 ]; then
-      echo "Restarting services - 12/12" > /tmp/pynab.upgrade
-    fi
-    sudo systemctl restart logrotate.service || true
-    sudo systemctl start nabd.socket
-    sudo systemctl start nabd.service
+sudo install -d -o "${uid}" -g "${gid}" -m 0700 /var/lib/pynab/update
 
-    # start services
-    for service_file in */*.service ; do
-      name=`basename ${service_file}`
-      if [ "${name}" = "nabassistd.service" -a $install_assist -eq 0 ]; then
-        continue
-      fi
-      if [ "${name}" != "nabd.service" -a "${name}" != "nabweb.service" ]; then
-        sudo systemctl start ${name}
-      fi
-    done
-
-    if [ $upgrade -eq 1 ]; then
-      echo "Restarting web site - 12/12" > /tmp/pynab.upgrade
-      sudo systemctl restart nabweb.service
-    else
-      sudo systemctl start nabweb.service
-    fi
-  fi
-fi
-
-if [ $install_assist -eq 1 ]; then
-  echo "Assist Satellite runtime installed."
-  echo "Configure it from the web interface, then run:"
-  echo "  ${root_dir}/venv/bin/python ${root_dir}/manage.py assist_diagnostics"
+# The updater restores only services that were active before the update.
+if [ $ci_chroot -eq 0 ] && [ $upgrade -eq 0 ]; then
+  echo "Starting services"
+  sudo systemctl restart logrotate.service || true
+  sudo systemctl start nabboot.service
+  sudo systemctl start nabd.socket nabd.service
+  for service_file in */*.service; do
+    name=$(basename "$service_file")
+    case $name in
+      nabboot.service|nabd.service|nabweb.service|nabassistd.service|nabhomeassistantd.service) continue ;;
+    esac
+    sudo systemctl start "$name"
+  done
+  sudo systemctl start nabweb.service
 fi

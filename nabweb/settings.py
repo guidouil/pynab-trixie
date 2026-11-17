@@ -15,6 +15,8 @@ import os
 
 from django.utils.translation import gettext_lazy as _
 
+from nabweb.secret import installation_secret
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -23,12 +25,15 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "+m)qk@&t%tlqj@o$jo$&egt34r7yu0fq4v!0o82&b9+b51ppyy"
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or installation_secret(
+    os.path.join(BASE_DIR, ".pynab-secret-key")
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 
-ALLOWED_HOSTS = ["*"]
+# The rabbit is addressed by local IP or its owner-selected mDNS name.
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
 
 # https://code.djangoproject.com/ticket/30250
 CSRF_COOKIE_SAMESITE = None

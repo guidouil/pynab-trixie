@@ -96,6 +96,7 @@ class Nabd:
     SLEEP_EAR_POSITION = 10
     INIT_EAR_POSITION = 0
     EAR_MOVEMENT_TIMEOUT = 0.5
+    ASR_CAPTURE_SECONDS = 15
 
     SYSTEMD_ACTIVATED_FD = 3
 
@@ -109,9 +110,9 @@ class Nabd:
             "left": Nabd.INIT_EAR_POSITION,
             "right": Nabd.INIT_EAR_POSITION,
         }
-        self.info: Dict[
-            str, Animation
-        ] = {}  # Info persists across service connections.
+        self.info: Dict[str, Animation] = (
+            {}
+        )  # Info persists across service connections.
         self.state = State.IDLE
         # Dictionary of writers, i.e. connected services
         # For each writer, value is the list of registered events
@@ -127,6 +128,8 @@ class Nabd:
         Nabd.leds_boot(self.nabio, 2)
         self.asr: Optional[Any] = None
         self.nlu: Optional[Any] = None
+        self._asr_task: Optional[asyncio.Task] = None
+        self._asr_stop = asyncio.Event()
         if self.nabio.has_sound_input():
             try:
                 from . import i18n
@@ -141,9 +144,11 @@ class Nabd:
                 self.nlu = NLU(self._nlu_locale)
                 Nabd.leds_boot(self.nabio, 4)
             except ImportError as exc:
+                self.asr = None
+                self.nlu = None
                 logging.warning(
-                    "Local ASR/NLU disabled: legacy Snips/Kaldi "
-                    "dependencies are not installed (%s)",
+                    "Local ASR/NLU disabled: voice backend or French "
+                    "model unavailable (%s)",
                     exc,
                 )
 
@@ -156,35 +161,38 @@ class Nabd:
                 from . import i18n
                 from .asr import ASR
                 from .nlu import NLU
+
+                config = await i18n.Config.load_async()
+                new_asr_locale = ASR.get_locale(config.locale)
+                new_nlu_locale = NLU.get_locale(config.locale)
+                if self.asr is None or new_asr_locale != getattr(
+                    self, "_asr_locale", None
+                ):
+                    Nabd.leds_boot(self.nabio, 2)
+                    self._asr_locale = new_asr_locale
+                    self.asr = None
+                    gc.collect()
+                    self.asr = ASR(self._asr_locale)
+                    Nabd.leds_boot(self.nabio, 3)
+                if self.nlu is None or new_nlu_locale != getattr(
+                    self, "_nlu_locale", None
+                ):
+                    Nabd.leds_boot(self.nabio, 3)
+                    self._nlu_locale = new_nlu_locale
+                    self.nlu = None
+                    gc.collect()
+                    self.nlu = NLU(self._nlu_locale)
+                    Nabd.leds_boot(self.nabio, 4)
             except ImportError as exc:
                 logging.warning(
-                    "Local ASR/NLU disabled: legacy Snips/Kaldi "
-                    "dependencies are not installed (%s)",
+                    "Local ASR/NLU disabled: voice backend or French "
+                    "model unavailable (%s)",
                     exc,
                 )
                 self.asr = None
                 self.nlu = None
-                return
-
-            config = await i18n.Config.load_async()
-            new_asr_locale = ASR.get_locale(config.locale)
-            new_nlu_locale = NLU.get_locale(config.locale)
-            if new_asr_locale != self._asr_locale:
-                Nabd.leds_boot(self.nabio, 2)
-                self._asr_locale = new_asr_locale
-                self.asr = None
-                gc.collect()
-                self.asr = ASR(self._asr_locale)
-                Nabd.leds_boot(self.nabio, 3)
-            if new_nlu_locale != self._nlu_locale:
-                Nabd.leds_boot(self.nabio, 3)
-                self._nlu_locale = new_nlu_locale
-                self.nlu = None
-                gc.collect()
-                self.nlu = NLU(self._nlu_locale)
-                Nabd.leds_boot(self.nabio, 4)
             self.nabio.set_leds(None, None, None, None, None)
-        self.nabio.pulse(Led.BOTTOM, (255, 0, 255))  # Fuchsia
+        self.nabio.pulse(Led.BOTTOM, (0, 0, 0))
 
     async def _do_transition_to_idle(self):
         """
@@ -193,8 +201,8 @@ class Nabd:
         Thread: service or idle_worker_loop
         """
         left, right = self.ears["left"], self.ears["right"]
-        await self.nabio.move_ears_with_leds((255, 0, 255), left, right)
-        self.nabio.pulse(Led.BOTTOM, (255, 0, 255))  # Fuchsia
+        await self.nabio.move_ears_with_leds((0, 255, 255), left, right)
+        self.nabio.pulse(Led.BOTTOM, (0, 0, 0))
         if network.ip_address(self.nabio.network_interface()) is None:
             # not even a local network connection: real bad
             logging.error("no network connection")
@@ -646,7 +654,9 @@ class Nabd:
                 )
                 return
         volume = self.nabio.sound.get_volume()
-        response = cast(ResponsePacketProto, {"status": "ok", "volume": volume})
+        response = cast(
+            ResponsePacketProto, {"status": "ok", "volume": volume}
+        )
         self.write_response_packet(packet, response, writer)
 
     async def process_mute_packet(
@@ -1105,10 +1115,12 @@ class Nabd:
             and self.state == State.IDLE
             and self.asr is not None
             and self.nlu is not None
+            and self._asr_task is None
         ):
-            asyncio.ensure_future(self.start_asr())
-        elif button_event == "up" and self.state == State.RECORDING:
-            asyncio.ensure_future(self.stop_asr())
+            self._asr_stop.clear()
+            self._asr_task = asyncio.create_task(self.start_asr())
+        elif button_event == "up" and self._asr_task is not None:
+            self._asr_stop.set()
         elif button_event == "triple_click":
             asyncio.ensure_future(self._shutdown(False))
         elif (
@@ -1135,29 +1147,87 @@ class Nabd:
         """
         Thread: run_loop
         """
-        assert self.asr is not None
-        await self.transition_to(State.RECORDING)
-        if self.nabio.rfid is not None:
-            self.nabio.rfid.disable_polling()
-        await self.nabio.start_acquisition(self.asr.decode_chunk)
-
-    async def stop_asr(self):
-        assert self.asr is not None
-        assert self.nlu is not None
-        await self.nabio.end_acquisition()
+        asr, nlu = self.asr, self.nlu
+        reserved = recording_ended = False
+        failed = False
+        audio_task = None
+        response = None
         now = time.time()
-        decoded_str = await self.asr.get_decoded_string(True)
-        # ASR model needs to be improved, log outcome.
-        logging.debug(f"ASR string: {decoded_str}")
-        response = await self.nlu.interpret(decoded_str)
-        logging.debug(f"NLU response: {str(response)}")
-        if self.nabio.rfid is not None:
-            self.nabio.rfid.enable_polling()
-        await self.transition_to(State.IDLE)
-        if response is None:
-            # Did not understand
-            await self.nabio.asr_failed()
-        else:
+        try:
+            async with self.idle_cv:
+                # A queued Mac reservation can win before this task starts.
+                if self.state != State.IDLE or asr is None or nlu is None:
+                    return
+                self.state = State.RECORDING
+                reserved = True
+                self.broadcast_state()
+            asr.reset()
+            if self.nabio.rfid is not None:
+                self.nabio.rfid.disable_polling()
+            audio_task = asyncio.create_task(
+                self.nabio.start_acquisition(asr.decode_chunk)
+            )
+            await asyncio.shield(audio_task)
+            audio_task = None
+            try:
+                await asyncio.wait_for(
+                    self._asr_stop.wait(), self.ASR_CAPTURE_SECONDS
+                )
+            except asyncio.TimeoutError:
+                pass
+            audio_task = asyncio.create_task(self.nabio.end_acquisition())
+            await asyncio.shield(audio_task)
+            audio_task = None
+            recording_ended = True
+            now = time.time()
+            decoded_str = await asr.get_decoded_string(True)
+            logging.debug("ASR string: %s", decoded_str)
+            response = await nlu.interpret(decoded_str)
+            logging.debug("NLU response: %s", response)
+            failed = response is None
+        except Exception:
+            response = None
+            failed = True
+            logging.exception("Native voice command failed")
+        finally:
+            try:
+                if reserved:
+                    # Finish a pending listen sound before closing its capture.
+                    if audio_task is not None and not audio_task.done():
+                        try:
+                            await audio_task
+                        except Exception:
+                            logging.exception(
+                                "Native voice acquisition failed"
+                            )
+                    if not recording_ended:
+                        try:
+                            await self.nabio.sound.stop_recording()
+                        except Exception:
+                            logging.exception(
+                                "Native voice capture cleanup failed"
+                            )
+                    if failed:
+                        try:
+                            await self.nabio.asr_failed()
+                        except Exception:
+                            logging.exception(
+                                "Native voice failure sound failed"
+                            )
+            finally:
+                try:
+                    if reserved:
+                        try:
+                            if self.nabio.rfid is not None:
+                                self.nabio.rfid.enable_polling()
+                        except Exception:
+                            logging.exception(
+                                "Native voice RFID cleanup failed"
+                            )
+                        await self.transition_to(State.IDLE)
+                finally:
+                    self._asr_task = None
+        if response is not None:
             event_type = "asr/*"
             if "/" in response["intent"]:
                 app, _ = response["intent"].split("/", 1)
@@ -1165,6 +1235,12 @@ class Nabd:
             self.broadcast_event(
                 event_type, {"type": "asr_event", "nlu": response, "time": now}
             )
+
+    async def stop_asr(self):
+        task = self._asr_task
+        if task is not None:
+            self._asr_stop.set()
+            await asyncio.shield(task)
 
     async def _shutdown(self, doReboot):
         await self.stop_idle_worker()
@@ -1209,7 +1285,7 @@ class Nabd:
     async def _ears_moved(self):
         await asyncio.sleep(Nabd.EAR_MOVEMENT_TIMEOUT)
         if self.interactive_service_writer is None:
-            (left, right) = await self.nabio.detect_ears_positions()
+            left, right = await self.nabio.detect_ears_positions()
             self.ears["left"] = left
             self.ears["right"] = right
             if self.state != State.ASLEEP:
@@ -1261,7 +1337,7 @@ class Nabd:
             app_str = self._get_rfid_app(app)
             packet["app"] = app_str
             if app_data is not None:
-                app_data_str_bin = app_data.split(b"\xFF", 1)[0]
+                app_data_str_bin = app_data.split(b"\xff", 1)[0]
                 app_data_str = app_data_str_bin.decode("utf8")
                 packet["data"] = app_data_str
             event_type = "rfid/" + app_str
@@ -1283,6 +1359,15 @@ class Nabd:
             return int(app)
         except ValueError:
             return TAG_APPLICATION_NONE
+
+    async def _warmup_asr(self, server_task):
+        try:
+            await asyncio.shield(server_task)
+            if self.asr is not None:
+                await self.asr.start()
+                logging.info("Native French voice ready")
+        except Exception:
+            logging.warning("Native voice warmup failed", exc_info=True)
 
     def run(self):
         self.loop = asyncio.get_event_loop()
@@ -1307,6 +1392,7 @@ class Nabd:
                     self.service_loop, NabService.HOST, NabService.PORT_NUMBER
                 )
             )
+        warmup_task = self.loop.create_task(self._warmup_asr(server_task))
         try:
             self.loop.run_forever()
             for t in [idle_task, server_task]:
@@ -1321,6 +1407,22 @@ class Nabd:
             print(error_msg)
             logging.critical(error_msg)
         finally:
+            warmup_task.cancel()
+            try:
+                self.loop.run_until_complete(warmup_task)
+            except asyncio.CancelledError:
+                pass
+            if self._asr_task is not None:
+                self._asr_task.cancel()
+                try:
+                    self.loop.run_until_complete(self._asr_task)
+                except asyncio.CancelledError:
+                    pass
+            if self.asr is not None:
+                try:
+                    self.loop.run_until_complete(self.asr.close())
+                except Exception:
+                    logging.exception("Native voice worker cleanup failed")
             self.loop.run_until_complete(self.stop_idle_worker())
             server = server_task.result()
             server.close()

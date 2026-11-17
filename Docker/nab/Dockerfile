@@ -42,6 +42,7 @@ RUN python3 -m venv ${VIRTUAL_ENV}
 ENV PATH=${VIRTUAL_ENV}/bin:${PATH}
 
 COPY requirements.txt /tmp/requirements.txt
+COPY requirements-runtime.txt /tmp/requirements-runtime.txt
 COPY requirements-assist.txt /tmp/requirements-assist.txt
 
 RUN ${VIRTUAL_ENV}/bin/pip install wheel

@@ -1,5 +1,6 @@
 import abc
 import asyncio
+import threading
 import time
 from asyncio import Event
 from typing import Any, Optional
@@ -78,7 +79,7 @@ class NabIO(object, metaclass=abc.ABCMeta):
         """
         Set the leds. None means to turn them off.
         """
-        for (led_ix, led) in [
+        for led_ix, led in [
             (Led.NOSE, nose),
             (Led.LEFT, left),
             (Led.CENTER, center),
@@ -86,16 +87,16 @@ class NabIO(object, metaclass=abc.ABCMeta):
             (Led.BOTTOM, bottom),
         ]:
             if led is None:
-                (r, g, b) = (0, 0, 0)
+                r, g, b = (0, 0, 0)
             else:
-                (r, g, b) = led
+                r, g, b = led
             self.leds.set1(led_ix, r, g, b)
 
     def pulse(self, led, color):
         """
         Set a led to pulse.
         """
-        (r, g, b) = color
+        r, g, b = color
         self.leds.pulse(led, r, g, b)
 
     async def rfid_detected_feedback(self):
@@ -217,14 +218,26 @@ class NabIO(object, metaclass=abc.ABCMeta):
 
     async def start_acquisition(self, acquisition_cb):
         """
-        Play listen sound and start acquisition, calling callback with sound
-        samples.
+        Open the microphone before the listen sound, then accept speech.
         """
         self.set_leds(
             (255, 0, 255), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0)
         )
-        await self.sound.play_list(["asr/listen.mp3"], False)
-        await self.sound.start_recording(acquisition_cb)
+        accepting = threading.Event()
+
+        def acquired(samples, finalize):
+            if accepting.is_set():
+                acquisition_cb(samples, finalize)
+            elif finalize:
+                acquisition_cb(b"", True)
+
+        try:
+            await self.sound.start_recording(acquired)
+            await self.sound.play_list(["asr/listen.mp3"], False)
+            accepting.set()
+        except BaseException:
+            await self.sound.stop_recording()
+            raise
 
     async def end_acquisition(self):
         """

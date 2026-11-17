@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "target": "zero-w-armv6-tagtagtag-cr14",
+  "pynab": {
+    "repository": "https://github.com/guidouil/pynab-trixie.git",
+    "branch": "trixie",
+    "upstream_commit": "4fb37bd52abf2b40a46f3d43386a798d87d4381d"
+  },
+  "base": {
+    "url": "https://downloads.raspberrypi.com/raspios_lite_armhf/images/raspios_lite_armhf-2026-09-15/2026-09-15-raspios-trixie-armhf-lite.img.xz",
+    "sha256": "c766b3fb279b95c12cb4dd22d06f8eab31972c372675d05bd0ca95b060523a7f"
+  },
+  "drivers": {
+    "ears": {
+      "repository": "pguyot/tagtagtag-ears",
+      "commit": "5ad1f1398ec03b28f0abf4df1f6ba60a5c0cec35",
+      "url": "https://codeload.github.com/pguyot/tagtagtag-ears/tar.gz/5ad1f1398ec03b28f0abf4df1f6ba60a5c0cec35",
+      "sha256": "db46eff125483604dae0320aa322c7cda3e5abbd33ce9b7310b98f4f06107921",
+      "patch_sha256": "4e8719909c2c4938ef12d551bd2e8662006c4e875c1fd791798403bac3d6ff8f"
+    },
+    "sound": {
+      "repository": "pguyot/wm8960",
+      "commit": "b552bdcedb74d162daf2318fc77116b2f209a84e",
+      "url": "https://codeload.github.com/pguyot/wm8960/tar.gz/b552bdcedb74d162daf2318fc77116b2f209a84e",
+      "sha256": "27d724979cad644c74d1c6787c39c3de6a9c577a54fbd2a2e29e94813c03255c",
+      "patch_sha256": "5c48147e65196608970aad1b2660f6109c6d735b2eab445df6b820e63cc7644e"
+    },
+    "cr14": {
+      "repository": "pguyot/cr14",
+      "commit": "f188d5894b5f5f0922fd4b20a14d892f267a8f7c",
+      "url": "https://codeload.github.com/pguyot/cr14/tar.gz/f188d5894b5f5f0922fd4b20a14d892f267a8f7c",
+      "sha256": "8dfa460cc277c5a1294d4d7d0882b831092d5106f50a299e28d01b26e7434a0b",
+      "patch_sha256": "aeeab6672c7a5f0ee757720a2d6a702cee152e0f7a3ad62555252c58facc1f7b"
+    }
+  }
+}

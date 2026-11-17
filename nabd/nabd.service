@@ -1,6 +1,7 @@
 [Unit]
 Description=Nabaztag main daemon
-After=postgresql.service
+Requires=nabboot.service
+After=postgresql.service nabboot.service
 StartLimitIntervalSec=0
 
 [Service]

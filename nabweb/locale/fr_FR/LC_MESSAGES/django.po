@@ -909,3 +909,35 @@ msgstr "{} heures et 1 minute"
 #: templatetags/duration_filter.py:27
 msgid "{} hours and {} minutes"
 msgstr "{} heures et {} minutes"
+
+#: templates/nabweb/upgrade/index.html
+msgid "Updates come from the trixie branch of guidouil/pynab-trixie. Local changes and divergent histories block updates."
+msgstr "Les mises à jour proviennent de la branche trixie de guidouil/pynab-trixie. Les modifications locales et les historiques divergents bloquent la mise à jour."
+
+#: templates/nabweb/upgrade/index.html
+msgid "This updates Pynab only. The kernel and hardware drivers are maintained with the image, separately from this button."
+msgstr "Ce bouton met à jour Pynab. Le noyau et les pilotes matériels sont maintenus avec l’image et suivent une procédure distincte."
+
+#: templates/nabweb/upgrade/index.html
+msgid "A private database backup is made before installation. Do not turn off the rabbit during the update."
+msgstr "Une sauvegarde privée de la base de données est créée avant l’installation. N’éteignez pas le lapin pendant la mise à jour."
+
+#: templates/nabweb/upgrade/index.html
+msgid "The web server is unavailable. Reconnect to the rabbit and check the update status before restarting it."
+msgstr "Le serveur web est indisponible. Reconnectez-vous au lapin et vérifiez l’état de la mise à jour avant de le redémarrer."
+
+#: templates/nabweb/upgrade/index.html
+msgid "Waiting for the web server to restart"
+msgstr "Redémarrage du serveur web en cours"
+
+#: templates/nabweb/upgrade/index.html
+msgid "Could not check for updates."
+msgstr "Impossible de vérifier les mises à jour."
+
+#: templates/nabweb/upgrade/index.html
+msgid "Checking and starting the update"
+msgstr "Vérification et lancement de la mise à jour"
+
+#: templates/nabweb/upgrade/index.html
+msgid "Could not start the update."
+msgstr "Impossible de lancer la mise à jour."

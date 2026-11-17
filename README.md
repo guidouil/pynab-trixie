@@ -1,130 +1,67 @@
-# Nabaztag en Python pour Raspberry Pi
+# Pynab Trixie
 
-[![build (qemu)](https://github.com/AntorFr/pynab-ha/actions/workflows/arm-runner.yml/badge.svg?branch=master)](https://github.com/AntorFr/pynab-ha/actions/workflows/arm-runner.yml)
-[![tests](https://github.com/AntorFr/pynab-ha/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/AntorFr/pynab-ha/actions/workflows/tests.yml)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![codecov](https://codecov.io/gh/AntorFr/pynab-ha/branch/master/graph/badge.svg)](https://codecov.io/gh/AntorFr/pynab-ha)
-[![Twitter](https://img.shields.io/twitter/follow/nabaztagtagtag?label=Follow&style=social)](https://twitter.com/nabaztagtagtag)
+Version communautaire de Pynab pour **Raspberry Pi Zero W original ARMv6**, carte
+TagTagTag (WM8960) et lecteur RFID CR14, sous **Raspberry Pi OS Lite Trixie 32 bits**.
 
-## Cartes
+Cette branche `trixie` part de [AntorFr/pynab-ha](https://github.com/AntorFr/pynab-ha)
+(`4fb37bd52abf2b40a46f3d43386a798d87d4381d`), lui-même issu de
+[nabaztag2018/pynab](https://github.com/nabaztag2018/pynab).
+Les pilotes restent issus des projets de Paul Guyot, avec leurs correctifs et
+attributions conservés. Aucun dépôt séparé n'est nécessaire pour chaque service.
 
-Ce système est conçu pour deux cartes pour **Nabaztag** (v1) et **Nabaztag:Tag** (v2) :
-- Une carte réalisée pour [Maker Faire 2018](https://paris.makerfaire.com/maker/entry/1285/), qui ne fonctionne qu'avec les Nabaztag (sans micro ni RFID).
-- Une nouvelle version de la carte, proposée via les campagnes Ulule de [mai 2019](https://fr.ulule.com/le-retour-du-nabaztag/) et [octobre 2021](https://fr.ulule.com/l-eternel-retour-du-nabaztag/), qui fonctionne avec les Nabaztag et les Nabaztag:Tag (les micros sont sur la carte, ce qui permet aux Nabaztag de bénéficier aussi de la reconnaissance vocale).
+**Préversion en préparation : aucune image stable à télécharger pour le moment.**
+Le son, les oreilles, les LED, le bouton, les annonces natives et la conversation
+Mac ont fonctionné sur le lapin de référence. Le nouveau parcours Wi-Fi, les
+mises à jour web et une installation sur SD vierge doivent encore être qualifiés
+sur le matériel. La lecture réelle d'un badge CR14 et l'endurance de 24 heures
+restent à valider. Les autres Pi et le lecteur NFC ST25R391x ne sont pas qualifiés.
 
-Les schémas et fichiers de fabrication de ces deux cartes sont dans le repository [hardware](https://github.com/nabaztag2018/hardware), respectivement [`RPI_Nabaztag`](https://github.com/nabaztag2018/hardware/blob/master/RPI_Nabaztag.PDF) (2018) et [`tagtagtag_V2.0`](https://github.com/nabaztag2018/hardware/tree/master/tagtagtag_V2.0) (2019).
+## Installer
 
-## Images
+Suivre [la préparation d'une SD vierge](docs/DISTRIBUTION.md). La recette installe
+les pilotes épinglés avant Pynab et crée une base PostgreSQL neuve. Elle ne copie
+ni sauvegarde personnelle, ni clés SSH, ni identifiants d'un autre lapin.
+Le script historique `setup` n'est plus le parcours d'installation de ce fork.
 
-Les [releases](https://github.com/AntorFr/pynab-ha/releases) sont des images de [Raspberry Pi OS](https://www.raspberrypi.org/software/operating-systems/) Lite ou [DietPi](https://dietpi.com/) avec Pynab pré-installé.
+## Configurer le Wi-Fi
 
-Les releases actuelles (>0.7.x) ne fonctionnent pas sur les cartes 2018 (cf [#44](https://github.com/AntorFr/pynab-ha/issues/44)).
+Le lapin crée un point d'accès lorsqu'aucun réseau mémorisé n'est disponible.
+Le bouton maintenu au démarrage ouvre aussi ce parcours, sans effacer les réseaux
+mémorisés. Se connecter au réseau `Nabaztag-…` depuis un téléphone puis utiliser
+le portail pour choisir son Wi-Fi. [Procédure et limites](docs/WIFI.md).
 
-## Installation sur Raspberry Pi OS ou DietPi (pour développeurs!)
+## Commandes vocales françaises
 
-### 0. S'assurer que le système est bien à jour
+Maintenir le bouton, attendre le bip, parler puis relâcher : « Quelle heure
+est-il ? », « La météo », « La météo demain », « Comment vas-tu ? ».
+PocketSphinx fonctionne localement, sans écoute permanente ; la météo nécessite
+son accès Internet habituel. La capture dure au plus 15 secondes.
+[Installation et qualification du moteur](docs/ZERO_W_TRIXIE.md).
 
-Le socle modernisé vise Python 3.13, Django 5.2 LTS et PostgreSQL 18.
+La conversation libre et la radio depuis le Mac utilisent l'application séparée
+[Nabaztag IA](https://github.com/guidouil/nabaztag_IA) et les accès de chaque
+utilisateur. Snips/Kaldi, Home Assistant et NabBlockly ne sont pas activés par
+cette préparation Zero W.
 
-Le script d'installation cible maintenant un système récent avec Python 3.13+ et n'installe plus l'ancien stack vocal local Snips/Kaldi. Voir `docs/MODERNIZATION.md` pour le détail de la migration.
+## Mettre à jour
 
-Il est nécessaire que les 'kernel headers' installés via `apt-get` correspondent à la version installée du noyau.
+L'interface web et `bash upgrade.sh` suivent uniquement
+`https://github.com/guidouil/pynab-trixie.git`, branche `trixie`.
+Les changements locaux, fichiers non suivis et historiques divergents bloquent
+la mise à jour. Une sauvegarde PostgreSQL privée précède l'installation.
+[Déroulement et récupération](docs/UPDATES.md).
+Le noyau et les pilotes ne sont pas mis à jour par ce bouton : ils doivent
+rester un ensemble qualifié selon la procédure de distribution.
 
-```sh
-sudo apt-get update
-sudo apt-get upgrade
-```
+## Développer et contribuer
 
-### 1. Configurer les pilotes pour le son, les oreilles et le lecteur RFID et redémarrer.
+Python 3.13, Django 5.2 LTS ; dépendances de développement dans `requirements.txt`.
+La configuration web désactive le mode debug par défaut et génère une clé de
+signature propre à chaque installation, ignorée par Git. L'interface reste
+prévue pour le réseau local de confiance. [Protocole Pynab](PROTOCOL.md).
+Les instructions historiques du portage sont conservées dans
+[ZERO_W_TRIXIE.md](docs/ZERO_W_TRIXIE.md).
 
-- Son : le pilote dépend de votre carte TagTagTag:
-   - Carte Maker Faire 2018 : [pilote HiFiBerry](https://web.archive.org/web/20170914003528/support.hifiberry.com/hc/en-us/articles/205377651-Configuring-Linux-4-x-or-higher)
-   - Carte Ulule 2019 : [pilote WM8960 - branche tagtagtag-sound](https://github.com/pguyot/wm8960/tree/tagtagtag-sound)
-
- - Oreilles : [pilote tagtagtag-ears](https://github.com/pguyot/tagtagtag-ears)
-
- - Lecteur RFID :
-   - [pilote CR14](https://github.com/pguyot/cr14) (Nabaztag:tag uniquement, non requis sur les Nabaztag, mais installé par les mises à jour)
-   - [pilote st25r391x](https://github.com/pguyot/st25r391x) (carte NFC 2022 pour Nabaztag & Nabaztag:tag)
-
-Les 'kernel headers' sont nécessaires pour la compilation des pilotes:
-```sh
-sudo apt-get install gcc make linux-headers-rpi-v8
-```
-
-### 2. Installer PostgreSQL et les paquets requis
-
-```sh
-sudo apt-get install postgresql libpq-dev git python3 python3-venv python3-dev gettext nginx openssl libssl-dev libffi-dev libmpg123-dev libasound2-dev libgfortran5 libopenblas-dev liblapack-dev zram-tools
-```
-Sur DietPi les paquets suivants sont aussi nécessaires:
-```sh
-sudo apt-get install alsa-utils xz-utils avahi-daemon
-```
-
-### 3. Récupérer le code
-
-```sh
-git clone https://github.com/AntorFr/pynab-ha.git
-cd pynab
-```
-
-### 4. Lancer le script d'installation
-Ce script fait le reste, notamment l'installation et le démarrage des services via `systemd`.
-
-```sh
-bash install.sh
-```
-
-Pour installer aussi le runtime Home Assistant Assist Satellite, avec les
-dépendances wake word optionnelles et le service `nabassistd` :
-
-```sh
-PYNAB_INSTALL_ASSIST=1 bash install.sh
-```
-
-Après configuration dans l'interface web, le diagnostic peut être lancé en SSH :
-
-```sh
-venv/bin/python manage.py assist_diagnostics
-```
-
-ou, pour les cartes de la Maker Faire 2018 :
-
-```sh
-bash install.sh --makerfaire2018
-```
-
-## Mise à jour
-
-A priori, cela fonctionne via l'interface web.
-Si nécessaire, il est possible de le faire en ligne de commande avec :
-```sh
-cd pynab
-bash upgrade.sh
-```
-
-## NabBlockly
-
-[NabBlockly](https://github.com/pguyot/nabblockly), une interface de programmation des chorégraphies du lapin par blocs, est installé sur les images des releases depuis la 0.6.3b et fonctionne sur le port [8080](http://nabaztag.local:8080/). L'installation est possible sur le port 80 en modifiant la configuration de Nginx.
-
-## Architecture
-
-Voir le [protocole nabd](PROTOCOL.md)
-
-- `nabd` : démon qui gère le lapin (e/s, chorégraphies)
-- `nab8balld` : démon pour le service gourou
-- `nabairqualityd` : démon pour le service de qualité de l'air
-- `nabclockd` : démon pour le service horloge
-- `nabsurprised` : démon pour le service surprises
-- `nabtaichid` : démon pour le service taichi
-- `nabmastodond` : démon pour le service mastodon
-- `nabweatherd` : démon pour le service météo
-- `nabiftttd` : démon pour le service IFTTT
-- `nabassistd` : démon Home Assistant Assist Satellite
-- `nabhomeassistantd` : démon Home Assistant MQTT Discovery et contrôle
-- `nabweb` : interface web pour la configuration
-
-## Contribution
-
-Vos contributions sont toujours les bienvenues ! Veuillez d'abord consulter les [directives de contribution](CONTRIBUTING.md).
+Pynab conserve sa [licence](LICENSE). Les sources et notices des dépendances,
+pilotes, sons et modèles sont conservées ; consulter leur provenance avant
+redistribution. [Contribuer](CONTRIBUTING.md).

@@ -2,15 +2,14 @@ import asyncio
 import functools
 import io
 import logging
-import traceback
 import wave
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from urllib.request import urlopen
 
 import alsaaudio  # type: ignore
-from mpg123 import Mpg123  # type: ignore
 
 from .cancel import wait_with_cancel_event
+from .mpg123 import Mpg123
 from .sound import Sound
 
 
@@ -63,6 +62,7 @@ class SoundAlsa(Sound):  # pragma: no cover
         self.executor = ThreadPoolExecutor(max_workers=1)
 
         self.future = None
+        self.record_future = None
         self.currently_playing = False
         self.currently_recording = False
 
@@ -185,84 +185,88 @@ class SoundAlsa(Sound):  # pragma: no cover
                 data = f.readframes(periodsize)
 
     def _play_mp3_file(self, device, filename):
-        mp3 = Mpg123(filename)
-        rate, channels, encoding = mp3.get_format()
-        width = mp3.get_width_by_encoding(encoding)
-        self._setup_device(device, channels, rate, width)
-        periodsize = rate // 10  # 1/10th of second
-        device.setperiodsize(periodsize)
-        target_chunk_size = periodsize * width * channels
-        chunk = io.BytesIO()
-        chunk_length = 0
-        for frames in mp3.iter_frames():
-            if (chunk_length + len(frames)) <= target_chunk_size:
-                # Chunk is still smaller than what ALSA device expects
-                # (0.1 sec)
-                chunk_length += chunk.write(frames)
-            else:
-                frames_view = memoryview(frames)
-                remaining = target_chunk_size - chunk_length
-                chunk_length += chunk.write(frames_view[:remaining])
-                device.write(chunk.getvalue())
-                chunk.seek(0)
-                chunk_length = 0
-                chunk_length += chunk.write(frames_view[remaining:])
-
-            if not self.currently_playing:
-                break
-
-        # ALSA device expects chunks of fixed period size
-        # Pad the sound with silence to complete last chunk
-        if chunk_length > 0:
-            remaining = target_chunk_size - chunk_length
-            chunk.write(bytearray(remaining))
-            device.write(chunk.getvalue())
-
-    def _stream_mp3(self, device, url):
-        mp3 = Mpg123()
-        # url begins with http:// or https:// (see above)
-        response = urlopen(url)  # nosec B310
-
-        mp3chunk = response.read(4096)
-        if not mp3chunk:
-            return
-        mp3.feed(mp3chunk)
-        rate, channels, encoding = mp3.get_format()
-        width = mp3.get_width_by_encoding(encoding)
-        self._setup_device(device, channels, rate, width)
-        periodsize = rate // 10  # 1/10th of second
-        device.setperiodsize(periodsize)
-        target_chunk_size = periodsize * width * channels
-        alsachunk = io.BytesIO()
-        chunk_length = 0
-        while self.currently_playing:
+        with Mpg123(filename) as mp3:
+            rate, channels, encoding = mp3.get_format()
+            width = mp3.get_width_by_encoding(encoding)
+            self._setup_device(device, channels, rate, width)
+            periodsize = rate // 10  # 1/10th of second
+            device.setperiodsize(periodsize)
+            target_chunk_size = periodsize * width * channels
+            chunk = io.BytesIO()
+            chunk_length = 0
             for frames in mp3.iter_frames():
                 if (chunk_length + len(frames)) <= target_chunk_size:
                     # Chunk is still smaller than what ALSA device expects
                     # (0.1 sec)
-                    chunk_length += alsachunk.write(frames)
+                    chunk_length += chunk.write(frames)
                 else:
                     frames_view = memoryview(frames)
                     remaining = target_chunk_size - chunk_length
-                    chunk_length += alsachunk.write(frames_view[:remaining])
-                    device.write(alsachunk.getvalue())
-                    alsachunk.seek(0)
+                    chunk_length += chunk.write(frames_view[:remaining])
+                    device.write(chunk.getvalue())
+                    chunk.seek(0)
                     chunk_length = 0
-                    chunk_length += alsachunk.write(frames_view[remaining:])
+                    chunk_length += chunk.write(frames_view[remaining:])
 
                 if not self.currently_playing:
                     break
+
+            # ALSA device expects chunks of fixed period size
+            # Pad the sound with silence to complete last chunk
+            if chunk_length > 0:
+                remaining = target_chunk_size - chunk_length
+                chunk.write(bytearray(remaining))
+                device.write(chunk.getvalue())
+
+    def _stream_mp3(self, device, url):
+        with Mpg123() as mp3:
+            # url begins with http:// or https:// (see above)
+            response = urlopen(url)  # nosec B310
+
             mp3chunk = response.read(4096)
             if not mp3chunk:
-                break
+                return
             mp3.feed(mp3chunk)
+            rate, channels, encoding = mp3.get_format()
+            width = mp3.get_width_by_encoding(encoding)
+            self._setup_device(device, channels, rate, width)
+            periodsize = rate // 10  # 1/10th of second
+            device.setperiodsize(periodsize)
+            target_chunk_size = periodsize * width * channels
+            alsachunk = io.BytesIO()
+            chunk_length = 0
+            while self.currently_playing:
+                for frames in mp3.iter_frames():
+                    if (chunk_length + len(frames)) <= target_chunk_size:
+                        # Chunk is still smaller than what ALSA device expects
+                        # (0.1 sec)
+                        chunk_length += alsachunk.write(frames)
+                    else:
+                        frames_view = memoryview(frames)
+                        remaining = target_chunk_size - chunk_length
+                        chunk_length += alsachunk.write(
+                            frames_view[:remaining]
+                        )
+                        device.write(alsachunk.getvalue())
+                        alsachunk.seek(0)
+                        chunk_length = 0
+                        chunk_length += alsachunk.write(
+                            frames_view[remaining:]
+                        )
 
-        # ALSA device expects chunks of fixed period size
-        # Pad the sound with silence to complete last chunk
-        if chunk_length > 0:
-            remaining = target_chunk_size - chunk_length
-            alsachunk.write(bytearray(remaining))
-            device.write(alsachunk.getvalue())
+                    if not self.currently_playing:
+                        break
+                mp3chunk = response.read(4096)
+                if not mp3chunk:
+                    break
+                mp3.feed(mp3chunk)
+
+            # ALSA device expects chunks of fixed period size
+            # Pad the sound with silence to complete last chunk
+            if chunk_length > 0:
+                remaining = target_chunk_size - chunk_length
+                alsachunk.write(bytearray(remaining))
+                device.write(alsachunk.getvalue())
 
     def _setup_device(self, device, channels, rate, width):
         # Set attributes
@@ -282,19 +286,29 @@ class SoundAlsa(Sound):  # pragma: no cover
 
     async def start_recording(self, stream_cb):
         logging.debug("SoundAlsa: start recording")
+        await self.stop_recording()
         await self.stop_playing()
         self.currently_recording = True
-        if logging.getLogger(__name__).isEnabledFor(logging.DEBUG):
-            logging.debug(
-                "SoundAlsa: creating sound_alsa_recording.raw to "
-                "save recorded frames"
+        ready = Future()
+        try:
+            if logging.getLogger(__name__).isEnabledFor(logging.DEBUG):
+                logging.debug(
+                    "SoundAlsa: creating sound_alsa_recording.raw to "
+                    "save recorded frames"
+                )
+                self._recorded_raw = open("sound_alsa_recording.raw", "wb")
+            self.record_future = asyncio.get_running_loop().run_in_executor(
+                None, self._record, stream_cb, ready
             )
-            self._recorded_raw = open("sound_alsa_recording.raw", "wb")
-        self.future = asyncio.get_event_loop().run_in_executor(
-            self.executor, lambda cb=stream_cb: self._record(cb)
-        )
+            await asyncio.wrap_future(ready)
+        except BaseException:
+            try:
+                await self.stop_recording()
+            except Exception:
+                logging.exception("Failed capture cleanup")
+            raise
 
-    def _record(self, cb):
+    def _record(self, cb, ready):
         inp = None
         try:
             inp = alsaaudio.PCM(
@@ -306,10 +320,14 @@ class SoundAlsa(Sound):  # pragma: no cover
             inp.setrate(16000)
             inp.setformat(alsaaudio.PCM_FORMAT_S16_LE)
             inp.setperiodsize(1600)  # 100ms
+            if not ready.done():
+                ready.set_result(None)
             finalize = False
             count = 0
             while not finalize:
                 l, data = inp.read()
+                if l < 0:
+                    raise OSError(f"ALSA capture returned {l} frames")
                 if not self.currently_recording:
                     finalize = True
                 if l or finalize:
@@ -318,8 +336,10 @@ class SoundAlsa(Sound):  # pragma: no cover
                         self._recorded_raw.write(data)
                     cb(data, finalize)
             logging.debug(f"SoundAlsa: Recorded {count} frames")
-        except Exception:
-            print(traceback.format_exc())
+        except Exception as exc:
+            if not ready.done():
+                ready.set_exception(exc)
+            raise
         finally:
             self.currently_recording = False
             if inp:
@@ -329,10 +349,19 @@ class SoundAlsa(Sound):  # pragma: no cover
         logging.debug("SoundAlsa: stop recording")
         if self.currently_recording:
             self.currently_recording = False
-        await self.wait_until_done()
-        if self._recorded_raw is not None:
-            self._recorded_raw.close()
-            self._recorded_raw = None
+        future = self.record_future
+        try:
+            if future is not None:
+                try:
+                    await asyncio.shield(future)
+                except asyncio.CancelledError:
+                    await future
+                    raise
+        finally:
+            self.record_future = None
+            if self._recorded_raw is not None:
+                self._recorded_raw.close()
+                self._recorded_raw = None
 
     @staticmethod
     def __test_device(device, record):

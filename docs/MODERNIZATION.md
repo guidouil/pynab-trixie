@@ -15,10 +15,11 @@ target for an old Django 3.2 application.
 
 ## Legacy ASR/NLU
 
-The historical local ASR stack is split into `requirements-asr-legacy.txt`.
-It still depends on Snips/Kaldi wheels built around Python 3.7/3.9 and should
-not block modernization of the web service, daemon protocol, Home Assistant
-control, or future Assist Satellite work.
+The historical Snips/Kaldi implementation depended on Python 3.7/3.9 wheels
+and is not part of this branch. On the original Zero W running Trixie, the
+optional `install-native-asr.sh` installs PocketSphinx 5.1.1 and a French model
+for clock, weather and mood commands. It uses the existing long-press capture
+and native service events, independently of the Mac and Home Assistant.
 
 The modern CI intentionally skips:
 
