@@ -7,6 +7,11 @@ from pathlib import Path
 
 SETUP_REQUEST = Path("/run/pynab-wifi-setup")
 
+# Debian keeps Comitup and its metadata outside dist-packages.
+DEBIAN_COMITUP = Path("/usr/share/comitup")
+if (DEBIAN_COMITUP / "comitup").is_dir():
+    sys.path.insert(0, str(DEBIAN_COMITUP))
+
 
 def connected():
     from comitup.client import CiuClient

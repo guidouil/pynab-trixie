@@ -1,3 +1,5 @@
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -72,6 +74,66 @@ class BootButtonTests(unittest.TestCase):
 
 
 class ComitupStartupTests(unittest.TestCase):
+    def test_debian_private_package_and_metadata_work_in_both_modes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            private = root / "private"
+            fixtures = {
+                "comitup/__init__.py": "",
+                "comitup/client.py": (
+                    "class CiuClient:\n"
+                    "    def ciu_state(self):\n"
+                    "        return 'CONNECTED', 1\n"
+                ),
+                "comitup/comitup.py": (
+                    "from importlib.metadata import version\n"
+                    "from . import states\n"
+                    "def main():\n"
+                    "    states.init_states()\n"
+                    "    print(version('comitup'), states.startup)\n"
+                ),
+                "comitup/states.py": (
+                    "from types import SimpleNamespace\n"
+                    "startup = False\n"
+                    "dns_names = []\n"
+                    "mdns = SimpleNamespace(clear_entries=lambda: None, "
+                    "add_hosts=lambda names: None)\n"
+                    "def init_states():\n"
+                    "    global startup\n"
+                    "    startup = True\n"
+                ),
+                "comitup-1.43.dist-info/METADATA": (
+                    "Metadata-Version: 2.1\nName: comitup\nVersion: 1.43\n"
+                ),
+            }
+            for name, contents in fixtures.items():
+                path = private / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(contents)
+            request = root / "request"
+            request.touch()
+            helper = root / "launcher.py"
+            source = Path(comitup_start.__file__).read_text()
+            helper.write_text(
+                source.replace("/usr/share/comitup", str(private)).replace(
+                    "/run/pynab-wifi-setup", str(request)
+                )
+            )
+            result = subprocess.run(
+                [sys.executable, str(helper)],
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            self.assertEqual(result.stdout.strip(), "1.43 False")
+            self.assertFalse(request.exists())
+            subprocess.run(
+                [sys.executable, str(helper), "--connected"],
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
     def test_proxy_starts_only_after_upstream_connection(self):
         client = mock.Mock()
         module = SimpleNamespace(CiuClient=mock.Mock(return_value=client))
