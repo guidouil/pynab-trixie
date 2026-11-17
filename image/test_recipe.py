@@ -3,6 +3,7 @@
 import importlib.util
 import io
 import json
+import subprocess
 import tarfile
 import tempfile
 import unittest
@@ -15,6 +16,92 @@ spec.loader.exec_module(fetch)
 
 
 class RecipeTest(unittest.TestCase):
+    def test_kernel_trim_selects_only_reviewed_installed_families(self):
+        packages = """ii linux-image-rpi-v6:armhf
+ii linux-headers-6.18.60+rpt-rpi-v6
+ii linux-image-rpi-v7:armhf
+ii linux-headers-6.18.60+rpt-rpi-v7l:armhf
+ii linux-image-6.18.60+rpt-rpi-v8:arm64
+ii linux-base-rpi-2712:arm64
+rc linux-image-6.12.1-rpi-v7
+ii linux-image-armmp
+ii raspberrypi-utils
+"""
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                'source "$1"; kernel_candidates',
+                "bash",
+                str(HERE / "trim-kernels.sh"),
+            ],
+            input=packages,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        self.assertEqual(
+            result.stdout.splitlines(),
+            [
+                "linux-image-rpi-v7:armhf",
+                "linux-headers-6.18.60+rpt-rpi-v7l:armhf",
+                "linux-image-6.18.60+rpt-rpi-v8:arm64",
+                "linux-base-rpi-2712:arm64",
+            ],
+        )
+
+    def test_kernel_trim_refuses_any_unlisted_apt_change(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidates, plan = root / "candidates", root / "plan"
+            candidates.write_text(
+                "linux-image-rpi-v7:armhf\nlinux-image-rpi-v8:arm64\n"
+            )
+            for removals, accepted in (
+                (
+                    "Remv linux-image-rpi-v7 [1]\nRemv linux-image-rpi-v8:arm64 [1]\n",
+                    True,
+                ),
+                ("Remv linux-image-rpi-v6 [1]\n", False),
+                ("Remv openssh-server [1]\n", False),
+                ("Remv linux-image-rpi-v8 [1]\n", False),
+                ("Inst linux-image-rpi-v6 [1]\n", False),
+            ):
+                with self.subTest(plan=removals):
+                    plan.write_text(removals)
+                    result = subprocess.run(
+                        [
+                            "bash",
+                            "-c",
+                            'source "$1"; validate_removals "$2" "$3"',
+                            "bash",
+                            str(HERE / "trim-kernels.sh"),
+                            str(candidates),
+                            str(plan),
+                        ],
+                        text=True,
+                        capture_output=True,
+                    )
+                    self.assertEqual(
+                        result.returncode == 0, accepted, result.stderr
+                    )
+            candidates.write_text("")
+            plan.write_text("Remv linux-image-rpi-v6 [1]\n")
+            result = subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    'source "$1"; validate_removals "$2" "$3"',
+                    "bash",
+                    str(HERE / "trim-kernels.sh"),
+                    str(candidates),
+                    str(plan),
+                ],
+                text=True,
+                capture_output=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+
     def test_manifest_matches_driver_patches(self):
         lock = json.loads(fetch.LOCK.read_text())
         self.assertEqual(set(lock["drivers"]), {"ears", "sound", "cr14"})
@@ -24,6 +111,7 @@ class RecipeTest(unittest.TestCase):
             )
         )
         self.assertNotIn("latest", lock["base"]["url"])
+        self.assertIn("raspios_lite_armhf-", lock["base"]["url"])
         self.assertRegex(lock["base"]["sha256"], r"^[0-9a-f]{64}$")
         for name, source in lock["drivers"].items():
             self.assertRegex(source["commit"], r"^[0-9a-f]{40}$")

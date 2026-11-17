@@ -7,8 +7,8 @@
     "upstream_commit": "4fb37bd52abf2b40a46f3d43386a798d87d4381d"
   },
   "base": {
-    "url": "https://downloads.raspberrypi.com/raspios_lite_armhf/images/raspios_lite_armhf-2026-09-15/2026-09-15-raspios-trixie-armhf-lite.img.xz",
-    "sha256": "c766b3fb279b95c12cb4dd22d06f8eab31972c372675d05bd0ca95b060523a7f"
+    "url": "https://downloads.raspberrypi.com/raspios_lite_armhf/images/raspios_lite_armhf-2026-10-06/2026-10-06-raspios-trixie-armhf-lite.img.xz",
+    "sha256": "2c302771f34c67a0b7ae7aa2e0dcdd3eac660504be59193c011ba79d412e1632"
   },
   "drivers": {
     "ears": {

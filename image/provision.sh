@@ -37,6 +37,7 @@ if [[ $phase == drivers ]]; then
   args=("$kernel" /var/cache/pynab-trixie)
   [[ $# == 1 ]] || args+=("$2")
   bash image/install-drivers.sh "${args[@]}"
+  bash image/trim-kernels.sh "$kernel"
   bash network/install.sh --no-start
   install -d -m 755 /etc/systemd/journald.conf.d
   printf '[Journal]\nStorage=persistent\nSystemMaxUse=32M\nRuntimeMaxUse=8M\n' > /etc/systemd/journald.conf.d/pynab-trixie.conf

@@ -12,7 +12,7 @@ ne flashe de support, ne copie de sauvegarde privée ou ne redémarre le lapin.
 ## Sources et base
 
 `image/sources.lock.json` fixe l'image officielle Raspberry Pi OS Lite Trixie
-armhf du **15 septembre 2026**, son SHA-256, les trois révisions de pilotes et
+armhf du **6 octobre 2026**, son SHA-256, les trois révisions de pilotes et
 les SHA-256 des archives et patches. L'empreinte de l'image a été comparée au
 fichier `.sha256` publié par downloads.raspberrypi.com le 17 novembre 2026.
 La base officielle est distincte de la SD personnelle utilisée pendant les
@@ -74,6 +74,12 @@ reconstruction identique octet pour octet.
    par APT, puis installe les unités réseau avec `network/install.sh --no-start`.
    Le noyau est sélectionné explicitement depuis le paquet installé
    `linux-image-rpi-v6`, jamais depuis le `uname` d'un éventuel hôte de build.
+   Après validation des pilotes pour ce noyau, la recette retire les seules
+   familles de paquets v7/v7l/v8/2712 déjà installées. Elle simule d'abord APT
+   et refuse toute suppression hors liste ou toute installation supplémentaire.
+   Les paquets v6 et leurs en-têtes restent explicitement installés ; aucun
+   `autoremove` ni changement des architectures APT n'est effectué. Les images
+   du noyau et de l'initramfs de démarrage doivent correspondre au v6 choisi.
 4. Redémarrer manuellement puis vérifier son, micro, oreilles et CR14. Installer
    ensuite Pynab et les ressources vocales françaises depuis le compte propriétaire :
 
