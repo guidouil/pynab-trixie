@@ -182,3 +182,6 @@ msgstr "Erreur inconnue du serveur"
 
 msgid "For native voice, hold the button, wait for the beep, say <q>La météo</q> or <q>La météo demain</q>, then release. Native voice commands are available only in French."
 msgstr "Pour la commande vocale native, maintenez le bouton, attendez le bip, dites <q>La météo</q> ou <q>La météo demain</q>, puis relâchez. Les commandes vocales natives sont uniquement en français."
+
+msgid "For native voice, hold the button, wait for the beep, say <q>La météo</q> or <q>La météo demain</q>, then release. Native voice commands are available only in French. Forecasts cover today or tomorrow; requests for the morning or afternoon do not produce an hourly forecast."
+msgstr "Pour la commande vocale native, maintenez le bouton, attendez le bip, dites <q>La météo</q> ou <q>La météo demain</q>, puis relâchez. Les commandes vocales natives sont uniquement en français. Les prévisions portent sur aujourd'hui ou demain ; les demandes pour le matin ou l'après-midi ne produisent pas de prévision par heure."

@@ -1,0 +1,57 @@
+commands-fr.dict is a compact derivative of the CMU Sphinx French dictionary:
+https://sourceforge.net/projects/cmusphinx/files/Acoustic%20and%20Language%20Models/French/fr.dict
+Source SHA-256: 40b31d1b22c4e93eb35a742dc5bf0cd4243c5966f3f306b600016a43ff55e5ec
+
+Only the words used by Pynab's French command grammar are retained. One
+pronunciation per word is selected, with the established native recognizer
+preferences for est, moi, ton and météo, and French variants for ai, aller,
+toi, on, way, jean and johnny.
+Spelling aliases use the source pronunciation of alison (alyson), brise (brize),
+clotilde (clothilde), jeremy (jérémy), mickaël (mickael), plaît (plait), météo
+(météos), and the unaccented dictionary spelling of éliane, élisa, élisabeth, élise, émile, émilie,
+éric and évelyne.
+
+The following missing words have manually supplied pronunciations using the
+same French acoustic-model phone inventory: candice, coumba, cyrielle, cécilien,
+flavien, guili, imper, isa, iskander, ivor, kari, maeva, maÿlis, nabaztag, neiger,
+philémon, rafi, referais, tai, yoann, zélie and émeline. These additions allow the
+historical grammar to compile; they do not establish acoustic accuracy for every
+speaker or proper name. Existing installed pronunciations take precedence.
+
+The original dictionary's license follows in full.
+
+/* ====================================================================
+ * Copyright (c) 2006  - Universite du Maine, France.  All rights
+ * reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * This work was supported in part by funding from the Defense Advanced
+ * Research Projects Agency and the National Science Foundation of the
+ * United States of America, and the CMU Sphinx Speech Consortium.
+ *
+ * THIS SOFTWARE IS PROVIDED BY CARNEGIE MELLON UNIVERSITY ``AS IS'' AND
+ * ANY EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL CARNEGIE MELLON UNIVERSITY
+ * NOR ITS EMPLOYEES BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * ====================================================================
+ *
+ */

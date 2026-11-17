@@ -99,18 +99,34 @@ class TestNativeASRLifecycle(unittest.IsolatedAsyncioTestCase):
         await asyncio.wait_for(task, 1)
         self.assert_released()
 
-    async def test_guru_capture_routes_to_its_service(self):
-        self.rabbit.asr.get_decoded_string.return_value = (
-            "t' en penses quoi nabaztag"
+    async def test_native_commands_route_to_their_services(self):
+        commands = (
+            ("quelle heure est il", "nabclockd/clock"),
+            ("dodo", "nabclockd/sleep"),
+            ("météo", "nabweatherd/forecast"),
+            ("qualité de l' air", "nabairqualityd/forecast"),
+            ("tai chi", "nabtaichid/taichi"),
+            ("t' en penses quoi nabaztag", "nab8balld/8ball"),
+            ("fais moi rire", "nabsurprised/surprise"),
+            ("carotte", "nabsurprised/carrot"),
+            ("que sais tu faire", "nabsurprised/autopromo"),
+            ("anniversaire", "nabsurprised/birthday"),
         )
-        self.rabbit.nlu = NLU("fr_FR")
-        task = self.hold()
-        self.rabbit.button_callback("up", 2)
-        await asyncio.wait_for(task, 1)
-        self.assert_released()
-        event, packet = self.rabbit.broadcast_event.call_args.args
-        self.assertEqual(event, "asr/nab8balld")
-        self.assertEqual(packet["nlu"], {"intent": "nab8balld/8ball"})
+        for phrase, intent in commands:
+            with self.subTest(phrase=phrase):
+                self.assertIsNone(self.rabbit._asr_task)
+                self.setUp()
+                self.rabbit.asr.get_decoded_string.return_value = phrase
+                self.rabbit.nlu = NLU("fr_FR")
+                task = self.hold()
+                self.rabbit.button_callback("up", 2)
+                await asyncio.wait_for(task, 1)
+                self.assert_released()
+                self.rabbit.broadcast_event.assert_called_once()
+                event, packet = self.rabbit.broadcast_event.call_args.args
+                self.assertEqual(event, f"asr/{intent.split('/')[0]}")
+                self.assertEqual(packet["type"], "asr_event")
+                self.assertEqual(packet["nlu"], {"intent": intent})
 
     async def test_lost_release_times_out_and_next_capture_starts(self):
         self.rabbit.ASR_CAPTURE_SECONDS = 0.01

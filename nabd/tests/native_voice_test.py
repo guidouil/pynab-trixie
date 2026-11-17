@@ -42,7 +42,7 @@ class TestNativeNLU(unittest.IsolatedAsyncioTestCase):
                             datetime.date.today() + datetime.timedelta(days=1)
                         ).isoformat(),
                     )
-                else:
+                elif "date" not in NLU.SLOTS.get(phrase, {}):
                     self.assertNotIn("date", result)
 
     async def test_unknown_partial_and_multiple_commands_are_rejected(self):
@@ -68,7 +68,11 @@ class TestNativeASRCommands(unittest.TestCase):
             vocabulary = {"en": "an nn"}
             decoder = Mock()
             decoder.lookup_word.side_effect = vocabulary.get
-            decoder.add_word.side_effect = vocabulary.__setitem__
+            decoder.add_word.side_effect = (
+                lambda word, phones, **kwargs: vocabulary.__setitem__(
+                    word, phones
+                )
+            )
 
             def compile_search(*args):
                 for word in NLU.EXTRA_PRONUNCIATIONS:

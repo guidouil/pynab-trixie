@@ -77,11 +77,15 @@ est limitée à 15 secondes. Le clic court du relais Mac reste disponible.
 Le microphone est configuré avant le bip ; capture et lecture utilisent des
 futures distinctes. Les échantillons du bip sont ignorés, puis la parole est
 acceptée jusqu'au relâchement.
-L'heure, la météo, l'humeur et le Gourou sont les quatre familles de commandes
-prévues ; elles utilisent les annonces Pynab. Les formulations et les commandes
-historiques encore absentes sont listées dans [VOICE_COMMANDS.md](VOICE_COMMANDS.md).
-La reconnaissance fonctionne sans Internet,
-mais les prévisions météo gardent leur accès Internet habituel.
+Les dix intentions historiques françaises sont rétablies : heure, sommeil,
+météo, qualité de l'air, taï-chi, Gourou, surprise/humeur, carotte, présentation
+et anniversaire. Les formulations et les limites des services sont décrites dans
+[VOICE_COMMANDS.md](VOICE_COMMANDS.md). La reconnaissance fonctionne sans Internet,
+mais la météo et la qualité de l'air gardent leur accès Internet habituel.
+Les prévisions météo restent limitées à aujourd'hui ou demain, sans détail par
+heure ; la qualité de l'air annonce toujours aujourd'hui. L'anniversaire accepte
+les prénoms historiques, mais sa réponse reste générique. Les commandes anglaises
+et la conversation libre de l'application Mac sont hors de ce parcours natif.
 
 La grammaire est confirmée par un détecteur acoustique de mots de commande :
 une grammaire seule forcerait des phrases hors sujet vers une commande.

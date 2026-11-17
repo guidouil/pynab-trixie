@@ -7,7 +7,7 @@
     </div>
     <div class="card-body">
       <p>{% trans "The " %}<a class="help-link" href='/help/weather' target='_blank' title='{% trans "The weather forecast visual animations" %}'>{% trans "visual animation" %}</a>{% trans " can display, if available, a rain alert (blue blinking means get an umbrella, nothing will be displayed otherwise), the current weather forecast or both." %}</p>
-      <p>{% blocktrans %}For native voice, hold the button, wait for the beep, say <q>La météo</q> or <q>La météo demain</q>, then release. Native voice commands are available only in French.{% endblocktrans %}</p>
+      <p>{% blocktrans %}For native voice, hold the button, wait for the beep, say <q>La météo</q> or <q>La météo demain</q>, then release. Native voice commands are available only in French. Forecasts cover today or tomorrow; requests for the morning or afternoon do not produce an hourly forecast.{% endblocktrans %}</p>
       <div class="form-group row">
         <label for="weatherLocationInput" class="col-6 col-form-label">{% trans "Location" %}</label>
         <div class="col-6">

@@ -34,7 +34,9 @@ le portail pour choisir son Wi-Fi. [Procédure et limites](docs/WIFI.md).
 
 Maintenir le bouton, attendre le bip, parler puis relâcher : « Quelle heure
 est-il ? », « La météo », « La météo demain », « Comment vas-tu ? » ou
-« T’en penses quoi Nabaztag ? ».
+« T’en penses quoi Nabaztag ? ». Les dix intentions historiques françaises sont
+prises en charge : heure, sommeil, météo, qualité de l’air, taï-chi, Gourou,
+surprise/humeur, carotte, présentation et anniversaire.
 PocketSphinx fonctionne localement, sans écoute permanente ; la météo nécessite
 son accès Internet habituel. La capture dure au plus 15 secondes.
 [Formulations prises en charge et limites](docs/VOICE_COMMANDS.md).

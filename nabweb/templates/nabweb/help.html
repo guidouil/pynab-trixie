@@ -13,10 +13,16 @@
       <ul>
         <li>{% blocktrans %}Clock: <q>Quelle heure est-il ?</q> or <q>Donne-moi l'heure</q>.{% endblocktrans %}</li>
         <li>{% blocktrans %}Weather: <q>La météo</q> or <q>La météo demain</q>.{% endblocktrans %}</li>
-        <li>{% blocktrans %}Mood: <q>Comment vas-tu ?</q> or <q>Donne-moi ton humeur</q>.{% endblocktrans %}</li>
+        <li>{% blocktrans %}Air quality: <q>Qualité de l'air</q>.{% endblocktrans %}</li>
+        <li>{% blocktrans %}Tai chi: <q>C'est l'heure du tai-chi</q>.{% endblocktrans %}</li>
+        <li>{% blocktrans %}Sleep: <q>Dodo</q> or <q>Au lit</q>.{% endblocktrans %}</li>
+        <li>{% blocktrans %}Mood and surprises: <q>Comment vas-tu ?</q> or <q>Fais-moi rire</q>.{% endblocktrans %}</li>
         <li>{% blocktrans %}Magic 8 Ball: <q>T'en penses quoi Nabaztag ?</q>.{% endblocktrans %}</li>
+        <li>{% blocktrans %}Carrot: <q>Tu veux une carotte</q>.{% endblocktrans %}</li>
+        <li>{% blocktrans %}Rabbit presentation: <q>Que sais-tu faire</q>.{% endblocktrans %}</li>
+        <li>{% blocktrans %}Birthday: <q>C'est mon anniversaire</q> or <q>C'est l'anniversaire de Thomas</q>.{% endblocktrans %}</li>
       </ul>
-      <p>{% trans "Use these phrases. Other historical voice commands, including air quality, tai chi, sleep and birthday requests, are not available in this version. Open conversation in the Mac application is separate." %}</p>
+      <p>{% trans "Weather announces today or tomorrow, without an hourly forecast. Air quality always reports today. Birthday replies are generic, even when you give a first name. Open conversation in the Mac application is separate." %}</p>
       <p><b>{% trans "Reboot or shutdown the rabbit" %}</b><br>{% blocktrans %}You can do this cleanly by using the <kbd class="btn-warning">Reboot</kbd> or <kbd class="btn-danger">Shutdown</kbd> buttons on the <a  target='_parent' href='/system-info/'>System information</a> tab of the configuration page.{% endblocktrans %}<br>{% trans "As a last resort, you can also shutdown the rabbit by pushing its head button quickly three times in a row." %}</p>
       <p><b>{% trans "Base LED pulse color" %}</b> {% trans "indicates the rabbit's network connection state" %}<br>{% blocktrans %}<span class="badge badge-pill badge-info">Fuchsia</span> means <i>all is fine</i>: rabbit has an IP address on your local network, and access to the Internet.<br><span class="badge badge-pill badge-warning">Orange</span> means <i>not so good</i>: rabbit has a local IP address, but no Internet connection (check your router).<br><span class="badge badge-pill badge-danger">Red</span> means <i>real bad</i>: rabbit has no IP address (check your WiFi access point / DHCP server).{% endblocktrans %}</p>
       <hr class="my-4">

@@ -959,3 +959,27 @@ msgstr "Gourou : <q>T'en penses quoi Nabaztag ?</q>."
 
 msgid "Use these phrases. Other historical voice commands, including air quality, tai chi, sleep and birthday requests, are not available in this version. Open conversation in the Mac application is separate."
 msgstr "Utilisez ces formulations. Les autres commandes vocales historiques, notamment la qualité de l'air, le taï-chi, le sommeil et les anniversaires, ne sont pas disponibles dans cette version. La conversation libre dans l'application Mac est indépendante."
+
+msgid "Air quality: <q>Qualité de l'air</q>."
+msgstr "Qualité de l'air : <q>Qualité de l'air</q>."
+
+msgid "Tai chi: <q>C'est l'heure du tai-chi</q>."
+msgstr "Taï-chi : <q>C'est l'heure du tai-chi</q>."
+
+msgid "Sleep: <q>Dodo</q> or <q>Au lit</q>."
+msgstr "Sommeil : <q>Dodo</q> ou <q>Au lit</q>."
+
+msgid "Mood and surprises: <q>Comment vas-tu ?</q> or <q>Fais-moi rire</q>."
+msgstr "Humeur et surprises : <q>Comment vas-tu ?</q> ou <q>Fais-moi rire</q>."
+
+msgid "Carrot: <q>Tu veux une carotte</q>."
+msgstr "Carotte : <q>Tu veux une carotte</q>."
+
+msgid "Rabbit presentation: <q>Que sais-tu faire</q>."
+msgstr "Présentation du lapin : <q>Que sais-tu faire</q>."
+
+msgid "Birthday: <q>C'est mon anniversaire</q> or <q>C'est l'anniversaire de Thomas</q>."
+msgstr "Anniversaire : <q>C'est mon anniversaire</q> ou <q>C'est l'anniversaire de Thomas</q>."
+
+msgid "Weather announces today or tomorrow, without an hourly forecast. Air quality always reports today. Birthday replies are generic, even when you give a first name. Open conversation in the Mac application is separate."
+msgstr "La météo annonce aujourd'hui ou demain, sans prévision par heure. La qualité de l'air porte toujours sur aujourd'hui. Les réponses d'anniversaire sont génériques, même si vous donnez un prénom. La conversation libre dans l'application Mac est indépendante."

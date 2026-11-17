@@ -22,12 +22,71 @@ class ASR:
         "quelle heure": ("clock", 1e-20),
         "heure": ("clock", 1e-5),
         "météo": ("weather", 1e-5),
+        "météos": ("weather", 1e-5),
         "quel temps": ("weather", 1e-20),
         "comment vas": ("mood", 1e-20),
         "comment ça va": ("mood", 1e-20),
         "humeur": ("mood", 1e-5),
         "penses quoi": ("8ball", 1e-20),
+        "gourou": ("8ball", 1e-10),
+        "dis lapin": ("8ball", 1e-20),
+        "dis moi lapin": ("8ball", 1e-20),
+        "dis nabaztag": ("8ball", 1e-20),
+        "dis moi nabaztag": ("8ball", 1e-20),
+        "à ton avis": ("8ball", 1e-20),
+        "qu' en penses": ("8ball", 1e-20),
+        "qu' est ce que t' en penses": ("8ball", 1e-20),
+        "horloge": ("clock", 1e-10),
+        "air": ("airquality", 1e-10),
+        "qualité": ("airquality", 1e-10),
+        "pollué": ("airquality", 1e-10),
+        "taux": ("airquality", 1e-10),
+        "tai chi": ("taichi", 1e-20),
+        "dodo": ("sleep", 1e-10),
+        "dormir": ("sleep", 1e-10),
+        "au lit": ("sleep", 1e-20),
+        "se coucher": ("sleep", 1e-20),
+        "c' est l' heure": ("sleep", 1e-20),
+        "guili guili": ("mood", 1e-20),
+        "chatouille": ("mood", 1e-10),
+        "rire": ("mood", 1e-10),
+        "raconte": ("mood", 1e-10),
+        "surprise": ("mood", 1e-10),
+        "comment te sens": ("mood", 1e-20),
+        "carotte": ("carrot", 1e-10),
+        "carottes": ("carrot", 1e-10),
+        "sais faire": ("autopromo", 1e-20),
+        "sais tu faire": ("autopromo", 1e-20),
+        "anniversaire": ("birthday", 1e-10),
+        "pleuvra": ("weather", 1e-10),
+        "pleuvoir": ("weather", 1e-10),
+        "pleut": ("weather", 1e-10),
+        "faire chaud": ("weather", 1e-20),
+        "fera chaud": ("weather", 1e-20),
+        "fait chaud": ("weather", 1e-20),
+        "faire froid": ("weather", 1e-20),
+        "fera froid": ("weather", 1e-20),
+        "fait froid": ("weather", 1e-20),
+        "faire beau": ("weather", 1e-20),
+        "fera beau": ("weather", 1e-20),
+        "éclaircies": ("weather", 1e-10),
+        "parapluie": ("weather", 1e-10),
+        "besoin d' un": ("weather", 1e-20),
+        "sortir en": ("weather", 1e-20),
+        "mettre un short": ("weather", 1e-20),
+        "neiger": ("weather", 1e-10),
     }
+    PRONUNCIATIONS = (
+        dict(
+            line.split(maxsplit=1)
+            for line in Path(__file__)
+            .with_name("commands-fr.dict")
+            .read_text(encoding="utf-8")
+            .splitlines()
+            if line and not line.startswith("#")
+        )
+        | NLU.EXTRA_PRONUNCIATIONS
+    )
 
     @staticmethod
     def get_locale(locale):
@@ -57,13 +116,21 @@ class ASR:
         self._grammar = Decoder(dict=str(model / "commands.dict"), **options)
         self._keywords = Decoder(dict=str(model / "keywords.dict"), **options)
         for decoder in (self._grammar, self._keywords):
-            for word, phones in NLU.EXTRA_PRONUNCIATIONS.items():
-                if decoder.lookup_word(word) is None:
-                    decoder.add_word(word, phones)
+            missing = [
+                (word, phones)
+                for word, phones in self.PRONUNCIATIONS.items()
+                if decoder.lookup_word(word) is None
+            ]
+            for index, (word, phones) in enumerate(missing):
+                decoder.add_word(
+                    word, phones, update=index == len(missing) - 1
+                )
         grammar = (
             "#JSGF V1.0; grammar commands; public <request> = "
-            "<command> | <command> et <command>; <command> = "
-            + " | ".join(NLU.PHRASES)
+            "<noise>+ | <command> | <command> et <command>; <command> = "
+            + self._command_grammar()
+            + "; <noise> = "
+            + " | ".join(NLU.NOISE)
             + ";"
         )
         self._grammar.add_jsgf_string("commands", grammar)
@@ -76,6 +143,68 @@ class ASR:
             keywords.flush()
             self._keywords.add_kws("commands", keywords.name)
         self._keywords.activate_search("commands")
+
+    @staticmethod
+    def _command_grammar():
+        # Factor equivalent suffixes inline: PocketSphinx expands rule references.
+        phrases = {tuple(phrase.split()) for phrase in NLU.PHRASES}
+        cores = {
+            phrase[
+                int(phrase[0] == "euh") : len(phrase)
+                - int(phrase[-1] == "euh")
+            ]
+            for phrase in phrases
+        }
+        hesitations = phrases == {
+            prefix + phrase + suffix
+            for phrase in cores
+            for prefix in ((), ("euh",))
+            for suffix in ((), ("euh",))
+        }
+        tree = {}
+        for phrase in cores if hesitations else phrases:
+            node = tree
+            for word in phrase:
+                node = node.setdefault(word, {})
+            node[None] = None
+        states = {}
+
+        def intern(node):
+            edges = tuple(
+                (word, intern(children))
+                for word, children in sorted(
+                    (word, child)
+                    for word, child in node.items()
+                    if word is not None
+                )
+            )
+            state = (None in node, edges)
+            return states.setdefault(state, len(states))
+
+        start = intern(tree)
+        nodes = {number: state for state, number in states.items()}
+
+        def expand(number):
+            accepting, edges = nodes[number]
+            groups = {}
+            for word, target in edges:
+                groups.setdefault(target, []).append(word)
+            choices = []
+            for target, words in groups.items():
+                head = (
+                    words[0]
+                    if len(words) == 1
+                    else "(" + " | ".join(words) + ")"
+                )
+                tail = expand(target)
+                choices.append(head + (" " + tail if tail else ""))
+            if not choices:
+                return ""
+            content = " | ".join(choices)
+            return "[" + content + "]" if accepting else "(" + content + ")"
+
+        expression = expand(start)
+        return "[euh] " + expression + " [euh]" if hesitations else expression
 
     def reset(self):
         with self._buffer_lock:

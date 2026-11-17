@@ -79,7 +79,7 @@ pronunciations = {}
 for line in entries:
     word, phones = line.split(maxsplit=1)
     pronunciations.setdefault(word.split("(")[0], []).append(phones)
-for word, phones in NLU.EXTRA_PRONUNCIATIONS.items():
+for word, phones in ASR.PRONUNCIATIONS.items():
     if word not in pronunciations:
         entries.append(f"{word} {phones}")
         pronunciations[word] = [phones]
@@ -89,7 +89,7 @@ if words - pronunciations.keys():
 # KWS uses only the first pronunciation, including liaison in 'est-il'.
 preferred = {"est": 3, "moi": 1, "ton": 2, "météo": 1}
 (stage / "keywords.dict").write_text("".join(
-    word + " " + phones[preferred.get(word, 0)] + "\n"
+    word + " " + ASR.PRONUNCIATIONS.get(word, phones[preferred.get(word, 0)]) + "\n"
     for word, phones in pronunciations.items()
 ), encoding="utf-8")
 ASR.MODEL_PATH = stage
