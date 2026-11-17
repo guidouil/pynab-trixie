@@ -150,6 +150,10 @@ class NabWeatherd(NabInfoService):
             "rainy",
             RAINY_INFO_ANIMATION,
         ),
+        "Slight showers": (
+            "rainy",
+            RAINY_INFO_ANIMATION,
+        ),
         "Pluies éparses": (
             "rainy",
             RAINY_INFO_ANIMATION,
@@ -447,6 +451,13 @@ class NabWeatherd(NabInfoService):
         )
         tomorrow_forecast_max_temp = int(data[0]["T"]["max"])
 
+        if None in (
+            current_weather_class,
+            today_forecast_weather_class,
+            tomorrow_forecast_weather_class,
+        ):
+            return None
+
         return {
             "weather_animation_type": weather_animation_type,
             "current_weather_class": current_weather_class,
@@ -495,7 +506,7 @@ class NabWeatherd(NabInfoService):
                 packet = '{"type":"info",' '"info_id":"nabweatherd_rain"}\r\n'
                 self.writer.write(packet.encode("utf8"))
 
-            (weather_class, info_animation) = NabWeatherd.WEATHER_CLASSES[
+            weather_class, info_animation = NabWeatherd.WEATHER_CLASSES[
                 info_data["today_forecast_weather_class"]
             ]
             return info_animation
@@ -538,12 +549,12 @@ class NabWeatherd(NabInfoService):
             self.writer.write(packet.encode("utf8"))
         else:
             if type == "today":
-                (weather_class, info_animation) = NabWeatherd.WEATHER_CLASSES[
+                weather_class, info_animation = NabWeatherd.WEATHER_CLASSES[
                     info_data["today_forecast_weather_class"]
                 ]
                 max_temp = info_data["today_forecast_max_temp"]
             elif type == "tomorrow":
-                (weather_class, info_animation) = NabWeatherd.WEATHER_CLASSES[
+                weather_class, info_animation = NabWeatherd.WEATHER_CLASSES[
                     info_data["tomorrow_forecast_weather_class"]
                 ]
                 max_temp = info_data["tomorrow_forecast_max_temp"]

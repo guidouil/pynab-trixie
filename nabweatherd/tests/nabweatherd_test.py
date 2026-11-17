@@ -1,10 +1,13 @@
 import datetime
 import json
 import unittest
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import pytest
 from asgiref.sync import async_to_sync
 
+from nabcommon.nabservice import NabInfoService
 from nabd.tests.mock import MockWriter, NabdMockTestCase
 from nabd.tests.utils import close_old_async_connections
 from nabweatherd import models, rfid_data
@@ -17,6 +20,24 @@ def get_nabweatherd_instance(**kwargs):
     return object
 
 
+def get_mock_weather_client(description="Averses faibles"):
+    client = Mock()
+    client.get_forecast_for_place.return_value = SimpleNamespace(
+        daily_forecast=[
+            {
+                "weather12H": {"icon": "p12bisj", "desc": description},
+                "T": {"max": 16},
+            },
+            {
+                "weather12H": {"icon": "p12bisj", "desc": description},
+                "T": {"max": 17},
+            },
+        ]
+    )
+    client.get_rain.return_value = SimpleNamespace(forecast=[{"rain": 1}])
+    return client
+
+
 class TestNabWeatherd(unittest.TestCase):
     def test_aliases(self):
         service = get_nabweatherd_instance()
@@ -24,6 +45,57 @@ class TestNabWeatherd(unittest.TestCase):
         self.assertEqual(weather_class, "Pluie forte")
         weather_class = service.normalize_weather_class("None")
         self.assertEqual(weather_class, None)
+
+    def test_english_showers_use_existing_rain_audio_and_animation(self):
+        service = get_nabweatherd_instance()
+        service.writer = MockWriter()
+        config = (
+            TestNabWeatherdDB.RENNES_LOCATION,
+            NabWeatherd.UNIT_CELSIUS,
+            "weather_only",
+            3,
+            None,
+            False,
+        )
+        with patch(
+            "nabweatherd.nabweatherd.MeteoFranceClient",
+            return_value=get_mock_weather_client("Slight showers"),
+        ):
+            async_to_sync(NabInfoService.perform)(
+                service, datetime.datetime(2019, 4, 22), "today", config
+            )
+        packets = [json.loads(packet) for packet in service.writer.written]
+        self.assertEqual(
+            packets[1]["animation"],
+            json.loads(NabWeatherd.RAINY_INFO_ANIMATION),
+        )
+        self.assertIn(
+            "nabweatherd/sky/rainy.mp3", packets[2]["body"][0]["audio"]
+        )
+
+    def test_unknown_weather_uses_no_data_response_without_guessing(self):
+        service = get_nabweatherd_instance()
+        service.writer = MockWriter()
+        config = (
+            TestNabWeatherdDB.RENNES_LOCATION,
+            NabWeatherd.UNIT_CELSIUS,
+            "weather_only",
+            3,
+            None,
+            False,
+        )
+        with patch(
+            "nabweatherd.nabweatherd.MeteoFranceClient",
+            return_value=get_mock_weather_client("Unrecognized API weather"),
+        ):
+            async_to_sync(NabInfoService.perform)(
+                service, datetime.datetime(2019, 4, 22), "today", config
+            )
+        packets = [json.loads(packet) for packet in service.writer.written]
+        self.assertNotIn("animation", packets[0])
+        self.assertEqual(
+            packets[1]["body"], [{"audio": ["nabweatherd/no-data-error.mp3"]}]
+        )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -38,6 +110,14 @@ class TestNabWeatherdDB(unittest.TestCase):
         admin2="35",
         postCode="35000",
     )
+
+    def setUp(self):
+        patcher = patch(
+            "nabweatherd.nabweatherd.MeteoFranceClient",
+            return_value=get_mock_weather_client(),
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def tearDown(self):
         close_old_async_connections()
