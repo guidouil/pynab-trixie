@@ -121,6 +121,9 @@ def write_status(directory, status, message, **details):
     ) as stream:
         temporary = Path(stream.name)
         try:
+            if os.geteuid() == 0:
+                owner = directory.stat()
+                os.fchown(stream.fileno(), owner.st_uid, owner.st_gid)
             json.dump(
                 {
                     "status": status,
@@ -188,8 +191,10 @@ def update_lock(directory=STATE_DIR, wait=False):
 def run_upgrade(root, directory=STATE_DIR):
     directory = Path(directory)
     repo = Repository(root)
-    if os.geteuid() != repo.owner:
-        raise UpdateError("Run upgrade.sh as the owner of the Pynab checkout.")
+    if os.geteuid() not in {0, repo.owner}:
+        raise UpdateError(
+            "Run upgrade.sh as root or the Pynab checkout owner."
+        )
     # The child waits for the short launch lock held by the web request.
     with update_lock(directory, wait=True):
         previous = None
@@ -204,21 +209,25 @@ def run_upgrade(root, directory=STATE_DIR):
             if not info["commits_count"]:
                 write_status(directory, "done", "Pynab is already up to date.")
                 return
-            try:
-                subprocess.run(
-                    ["sudo", "-n", "true"],
-                    check=True,
-                    timeout=15,
-                    capture_output=True,
-                )
-            except (OSError, subprocess.SubprocessError) as error:
-                raise UpdateError(
-                    "Web updates require non-interactive sudo for the checkout owner. "
-                    "No code or service has been changed."
-                ) from error
+            if os.geteuid() != 0:
+                try:
+                    subprocess.run(
+                        ["sudo", "-n", "true"],
+                        check=True,
+                        timeout=15,
+                        capture_output=True,
+                    )
+                except (OSError, subprocess.SubprocessError) as error:
+                    raise UpdateError(
+                        "CLI updates require non-interactive sudo; use the "
+                        "root web service or run sudo bash upgrade.sh. "
+                        "No code or service has been changed."
+                    ) from error
             write_status(directory, "ok", "Backing up the Pynab database")
             backups = directory / "backups"
             backups.mkdir(mode=0o700, exist_ok=True)
+            if os.geteuid() == 0:
+                os.chown(backups, repo.owner, repo.root.stat().st_gid)
             stamp = datetime.datetime.now(datetime.timezone.utc).strftime(
                 "%Y%m%dT%H%M%SZ"
             )
@@ -226,6 +235,10 @@ def run_upgrade(root, directory=STATE_DIR):
             partial = backup_path.with_suffix(".dump.partial")
             with partial.open("xb") as output:
                 os.chmod(partial, 0o600)
+                if os.geteuid() == 0:
+                    os.fchown(
+                        output.fileno(), repo.owner, repo.root.stat().st_gid
+                    )
                 subprocess.run(
                     [
                         "pg_dump",
@@ -341,6 +354,8 @@ def run_upgrade(root, directory=STATE_DIR):
 def start_upgrade(root, directory=STATE_DIR):
     directory = Path(directory)
     repo = Repository(root)
+    if os.geteuid() not in {0, repo.owner}:
+        raise UpdateError("Start updates as root or the Pynab checkout owner.")
     with update_lock(directory):
         info = repo.inspect()
         if not info["commits_count"]:
@@ -354,14 +369,12 @@ def start_upgrade(root, directory=STATE_DIR):
                     )
                 os.chmod(directory / "upgrade.log", 0o600)
                 subprocess.Popen(
-                    repo.owner_command(
-                        [
-                            "/usr/bin/python3",
-                            "-m",
-                            "nabcommon.update",
-                            "upgrade",
-                        ]
-                    ),
+                    [
+                        "/usr/bin/python3",
+                        "-m",
+                        "nabcommon.update",
+                        "upgrade",
+                    ],
                     cwd=repo.root,
                     stdout=log,
                     stderr=subprocess.STDOUT,

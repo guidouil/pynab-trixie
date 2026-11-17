@@ -17,9 +17,17 @@ Le checkout doit être sur `trixie`, suivre `origin/trixie` et être propre :
 aucun fichier modifié, ajouté à l'index ou non suivi. Les commits locaux,
 historiques divergents, autres branches et autres adresses de dépôt sont
 refusés, y compris si la requête est envoyée directement sans le bouton web.
-Le compte propriétaire doit disposer du sudo non interactif requis par
-l’installateur (`sudo -n true`). Ce contrôle précède toute modification du code
-ou des services ; le fork ne modifie pas les autorisations sudo du compte.
+Le service web Pynab existant tourne sous root. Une mise à jour lancée depuis
+cette interface conserve ce contexte pour l'orchestration et l'installateur ;
+les commandes Git et les opérations du venv restent exécutées par le
+propriétaire du checkout. Le compte `pi` n'a donc pas besoin de sudo sans mot
+de passe pour utiliser le bouton web. Aucune règle sudoers ni autorisation
+utilisateur n'est modifiée.
+
+En ligne de commande, `bash upgrade.sh` exige le sudo non interactif requis
+par l'installateur (`sudo -n true`). À défaut, lancer `sudo bash upgrade.sh`
+et saisir son mot de passe dans le terminal. Le contrôle précède toute
+modification du code ou des services.
 Les fichiers ignorés par Git, notamment le venv et les modèles téléchargés,
 restent en place.
 
@@ -34,7 +42,9 @@ du projet Mac n'est pas un installateur générique.
 2. Le dépôt est vérifié et seule la branche distante `trixie` est récupérée,
    avec un délai réseau borné. Aucun service n'est arrêté à cette étape.
 3. `pg_dump` crée une sauvegarde cohérente de la base `pynab`, privée au
-   propriétaire du checkout, sous `backups/`. Un échec bloque la suite.
+   propriétaire du checkout, sous `backups/`. Statuts, journal et sauvegardes
+   restent lisibles par ce propriétaire même si le processus tourne sous
+   root, sans accès pour les autres utilisateurs. Un échec bloque la suite.
 4. Git applique uniquement une avance rapide vers le commit vérifié, sans
    réinitialisation forcée ni fusion des modifications locales.
 5. Les services Pynab actifs sont arrêtés, sauf le serveur web et `nabboot`.

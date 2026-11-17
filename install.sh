@@ -47,8 +47,8 @@ if [ $ci_chroot -eq 0 ] && [ $test -eq 0 ]; then
   fi
 fi
 
-if [ "$EUID" -eq 0 ]; then
-  echo "Please run this script as a regular user with sudo privileges"
+if [ "$EUID" -eq 0 ] && [ $upgrade -ne 1 ]; then
+  echo "Run installation as a regular user; root is supported only for --upgrade"
   exit 1
 fi
 
@@ -57,6 +57,15 @@ root_dir=`pwd`
 owner=`stat -c '%U' ${root_dir}`
 uid=`stat -c '%u' ${root_dir}`
 gid=`stat -c '%g' ${root_dir}`
+[[ $uid != 0 && $owner != UNKNOWN ]] || { echo "The checkout must belong to a regular user." >&2; exit 1; }
+
+run_as_owner() {
+  if [ "$EUID" -eq 0 ]; then
+    sudo -H -u "#$uid" -- "$@"
+  else
+    "$@"
+  fi
+}
 inst_dir=$(dirname ${root_dir})
 boot_config=/boot/firmware/config.txt
 if [ ! -f "$boot_config" ]; then
@@ -133,14 +142,14 @@ if [[ -f "${venv_cfg}" && "$(grep -c version\ =\ ${py_ver} ${venv_cfg})" -eq 0 ]
 fi
 if [ ! -d "venv" ]; then
   echo "Creating Python ${py_ver} virtual environment"
-  ${python} -m venv --system-site-packages venv
+  run_as_owner "${python}" -m venv --system-site-packages venv
 fi
 if ! grep -q '^include-system-site-packages = true$' "$venv_cfg"; then
   echo "The venv must expose the Raspberry Pi OS GPIO packages; recreate it with --system-site-packages."
   exit 1
 fi
 if [ "$(uname -m)" = "armv6l" ]; then
-  venv/bin/python - <<'PY'
+  run_as_owner venv/bin/python - <<'PY'
 from importlib.metadata import PackageNotFoundError, version
 
 import lgpio
@@ -158,12 +167,12 @@ fi
 
 echo "Installing PyPi requirements"
 # Start with wheel which is required to compile some of the other requirements
-venv/bin/pip install --no-cache-dir wheel
+run_as_owner venv/bin/pip install --no-cache-dir wheel
 requirements_file=requirements-runtime.txt
 if [ $test -eq 1 ]; then
   requirements_file=requirements.txt
 fi
-venv/bin/pip install --no-cache-dir -r "$requirements_file"
+run_as_owner venv/bin/pip install --no-cache-dir -r "$requirements_file"
 
 echo "Tuning PostgreSQL memory settings for Raspberry Pi."
 pg_configs=(/etc/postgresql/*/main/postgresql.conf)
@@ -241,18 +250,18 @@ if [ $test -eq 1 ]; then
 fi
 
 echo "Updating data models"
-venv/bin/python manage.py migrate
+run_as_owner venv/bin/python manage.py migrate
 
 all_locales="-l fr_FR -l de_DE -l en_US -l en_GB -l it_IT -l es_ES -l ja_jp -l pt_BR -l de -l en -l es -l fr -l it -l ja -l pt"
 
 echo "Updating localization messages"
 if [ $upgrade -eq 0 ]; then
-  venv/bin/django-admin compilemessages ${all_locales}
+  run_as_owner venv/bin/django-admin compilemessages ${all_locales}
 else
   for module in nab*/locale; do
     (
       cd `dirname ${module}`
-      ../venv/bin/django-admin compilemessages ${all_locales}
+      run_as_owner ../venv/bin/django-admin compilemessages ${all_locales}
     )
   done
 fi

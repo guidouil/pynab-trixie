@@ -1,5 +1,6 @@
 """Distribution updates are tested against local repositories, never GitHub."""
 
+import contextlib
 import json
 import os
 import subprocess
@@ -135,15 +136,23 @@ class RepositoryTest(unittest.TestCase):
         self.assertEqual(self.git(self.checkout, "rev-parse", "HEAD"), before)
         self.assertEqual((self.checkout / "value").read_text(), "one")
 
-    def exercise_upgrade(self, installation_fails=False):
+    def exercise_upgrade(self, installation_fails=False, as_root=False):
         target = self.publish()
         state = self.base / "state"
         state.mkdir()
         commands = []
+        owner_git_commands = []
         real_run = subprocess.run
 
         def run(command, **kwargs):
+            if command[:3] == ["sudo", "-n", "-u"]:
+                self.assertTrue(as_root)
+                self.assertEqual(command[3], f"#{self.repo.owner}")
+                self.assertEqual(command[4], "git")
+                owner_git_commands.append(command)
+                return real_run(command[4:], **kwargs)
             if command[0] == "git":
+                self.assertFalse(as_root)
                 return real_run(command, **kwargs)
             commands.append(command)
             if command[0] == "pg_dump":
@@ -163,21 +172,52 @@ class RepositoryTest(unittest.TestCase):
                 )
             if command[:2] == ["bash", "install.sh"] and installation_fails:
                 raise subprocess.CalledProcessError(1, command)
+            if command[:2] == ["bash", "install.sh"] and as_root:
+                self.assertEqual(update.os.geteuid(), 0)
             return subprocess.CompletedProcess(command, 0)
 
-        with mock.patch.object(update.subprocess, "run", side_effect=run):
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(
+                mock.patch.object(update.subprocess, "run", side_effect=run)
+            )
+            if as_root:
+                stack.enter_context(
+                    mock.patch.object(update.os, "geteuid", return_value=0)
+                )
+                chown = stack.enter_context(
+                    mock.patch.object(update.os, "chown")
+                )
+                fchown = stack.enter_context(
+                    mock.patch.object(update.os, "fchown")
+                )
             if installation_fails:
                 with self.assertRaises(update.UpdateError):
                     update.run_upgrade(self.checkout, state)
             else:
                 update.run_upgrade(self.checkout, state)
+            if as_root:
+                chown.assert_called_once_with(
+                    state / "backups",
+                    self.repo.owner,
+                    self.checkout.stat().st_gid,
+                )
+                fchown.assert_any_call(
+                    mock.ANY,
+                    self.repo.owner,
+                    self.checkout.stat().st_gid,
+                )
         result = update.read_status(state)
         self.assertEqual(self.git(self.checkout, "rev-parse", "HEAD"), target)
         backup = Path(result["database_backup"])
         self.assertEqual(backup.read_bytes(), b"PGDMP-test")
         self.assertEqual(backup.stat().st_mode & 0o777, 0o600)
-        self.assertEqual(commands[0], ["sudo", "-n", "true"])
-        self.assertEqual(commands[1][0], "pg_dump")
+        if as_root:
+            self.assertTrue(owner_git_commands)
+            self.assertNotIn(["sudo", "-n", "true"], commands)
+            self.assertEqual(commands[0][0], "pg_dump")
+        else:
+            self.assertEqual(commands[0], ["sudo", "-n", "true"])
+            self.assertEqual(commands[1][0], "pg_dump")
         stop = next(
             command
             for command in commands
@@ -218,6 +258,11 @@ class RepositoryTest(unittest.TestCase):
             )
         )
 
+    def test_root_orchestrates_install_but_git_runs_as_checkout_owner(self):
+        result, commands = self.exercise_upgrade(as_root=True)
+        self.assertEqual(result["status"], "done")
+        self.assertIn(["bash", "install.sh", "--upgrade"], commands)
+
     def test_lock_prevents_a_second_launch(self):
         state = self.base / "state"
         state.mkdir()
@@ -234,12 +279,17 @@ class RepositoryTest(unittest.TestCase):
             ),
             mock.patch.object(update.os, "geteuid", return_value=0),
             mock.patch.object(update.os, "fchown") as chown,
-            mock.patch.object(update.subprocess, "Popen"),
+            mock.patch.object(update.subprocess, "Popen") as spawn,
         ):
             update.start_upgrade(self.checkout, state)
         account = self.checkout.stat()
         chown.assert_any_call(mock.ANY, account.st_uid, account.st_gid)
         self.assertEqual((state / "upgrade.log").stat().st_mode & 0o777, 0o600)
+        self.assertEqual(
+            spawn.call_args.args[0],
+            ["/usr/bin/python3", "-m", "nabcommon.update", "upgrade"],
+        )
+        self.assertEqual((state / "status.json").stat().st_mode & 0o777, 0o600)
 
     def test_corrupt_status_is_reported_as_error(self):
         state = self.base / "state"
