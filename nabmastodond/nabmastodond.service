@@ -1,6 +1,7 @@
 [Unit]
 Description=Nabaztag mastodon daemon
 After=nabd.service
+ConditionPathExists=/etc/systemd/system/multi-user.target.wants/nabmastodond.service
 StartLimitIntervalSec=0
 
 [Service]

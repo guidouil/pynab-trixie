@@ -1,6 +1,7 @@
 [Unit]
 Description=Nabaztag IFTTT daemon
 After=nabd.service
+ConditionPathExists=/etc/systemd/system/multi-user.target.wants/nabiftttd.service
 StartLimitIntervalSec=0
 
 [Service]

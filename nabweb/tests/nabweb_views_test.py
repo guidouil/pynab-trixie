@@ -2,11 +2,15 @@ import asyncio
 import json
 import threading
 import time
+from contextlib import nullcontext
+from subprocess import CalledProcessError, CompletedProcess
+from unittest.mock import patch
 
 from django.http import JsonResponse
 from django.test import Client, TestCase
 
 from nabcommon import nabservice
+from nabcommon.update import UpdateError
 
 
 class TestView(TestCase):
@@ -53,7 +57,17 @@ class TestView(TestCase):
         self.assertTrue("rfid_support" in response.context)
         self.assertEqual(response.context["rfid_support"]["status"], "error")
 
-    def test_get_services(self):
+    @patch("nabweb.views.subprocess.run")
+    def test_get_services(self, systemctl):
+        systemctl.return_value = CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=(
+                "Id=nabiftttd.service\nActiveState=active\nUnitFileState=enabled\n\n"
+                "Id=nabwebhook.service\nActiveState=inactive\nUnitFileState=disabled\n\n"
+                "Id=nabradio.service\nActiveState=inactive\nUnitFileState=disabled\n"
+            ),
+        )
         c = Client()
         response = c.get("/services/")
         self.assertEqual(response.status_code, 200)
@@ -64,6 +78,94 @@ class TestView(TestCase):
         self.assertFalse("nabmastodond" in response.context["services"])
         self.assertTrue("current_locale" in response.context)
         self.assertEqual(response.context["current_locale"], "fr_FR")
+        services = response.context["optional_services"]
+        self.assertEqual(
+            [
+                (service["unit"], service["activation"], service["runtime"])
+                for service in services
+            ],
+            [
+                ("nabiftttd.service", "enabled", "active"),
+                ("nabwebhook.service", "disabled", "inactive"),
+                ("nabmastodond.service", None, None),
+                ("nabradio.service", "disabled", "inactive"),
+            ],
+        )
+        self.assertContains(response, 'name="action" value="enable"')
+        self.assertContains(response, 'name="action" value="disable"')
+
+    @patch("nabweb.views.update.update_lock", return_value=nullcontext())
+    @patch("nabweb.views.subprocess.run")
+    def test_toggle_optional_service(self, systemctl, update_lock):
+        c = Client(enforce_csrf_checks=True)
+        data = {"unit": "nabiftttd.service", "action": "enable"}
+        self.assertEqual(c.post("/services/", data).status_code, 403)
+        systemctl.assert_not_called()
+        systemctl.return_value = CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout="Id=nabiftttd.service\nUnitFileState=disabled\n",
+        )
+        c.get("/services/")
+        csrf = c.cookies["csrftoken"].value
+        for action, unit in (
+            ("enable", "nabiftttd.service"),
+            ("disable", "nabradio.service"),
+        ):
+            with self.subTest(action=action):
+                response = c.post(
+                    "/services/",
+                    {"unit": unit, "action": action},
+                    HTTP_X_CSRFTOKEN=csrf,
+                )
+                self.assertRedirects(
+                    response, "/services/", fetch_redirect_response=False
+                )
+                systemctl.assert_called_with(
+                    ["/usr/bin/systemctl", action, "--now", unit],
+                    check=True,
+                    capture_output=True,
+                    timeout=20,
+                )
+        self.assertEqual(update_lock.call_count, 2)
+
+    @patch("nabweb.views.subprocess.run")
+    def test_optional_service_rejects_other_units_and_actions(self, systemctl):
+        for unit, action in (
+            ("ssh.service", "enable"),
+            ("nabwebhook.service", "restart"),
+        ):
+            response = self.client.post(
+                "/services/", {"unit": unit, "action": action}
+            )
+            self.assertEqual(response.status_code, 400)
+        systemctl.assert_not_called()
+
+    @patch("nabweb.views.update.update_lock", side_effect=UpdateError("Busy"))
+    @patch("nabweb.views.subprocess.run", side_effect=OSError)
+    def test_optional_service_is_not_changed_during_upgrade(
+        self, systemctl, _lock
+    ):
+        response = self.client.post(
+            "/services/", {"unit": "nabmastodond.service", "action": "disable"}
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertTrue(response.context["service_error"])
+        self.assertEqual(systemctl.call_args.args[0][1], "show")
+
+    @patch("nabweb.views.update.update_lock", return_value=nullcontext())
+    @patch(
+        "nabweb.views.subprocess.run",
+        side_effect=CalledProcessError(1, "systemctl"),
+    )
+    def test_optional_service_command_error_is_visible(
+        self, _systemctl, _lock
+    ):
+        response = self.client.post(
+            "/services/", {"unit": "nabwebhook.service", "action": "enable"}
+        )
+        self.assertEqual(response.status_code, 503)
+        self.assertContains(response, 'role="alert"', status_code=503)
 
 
 class TestNabdClientBase(TestCase):

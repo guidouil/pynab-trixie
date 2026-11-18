@@ -1,6 +1,7 @@
 [Unit]
 Description=Nabaztag Webhook daemon
 After=nabd.service
+ConditionPathExists=/etc/systemd/system/multi-user.target.wants/nabwebhook.service
 StartLimitIntervalSec=0
 
 [Service]

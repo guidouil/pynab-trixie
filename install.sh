@@ -66,6 +66,44 @@ run_as_owner() {
     "$@"
   fi
 }
+
+optional_units=(nabiftttd.service nabmastodond.service nabradio.service nabwebhook.service)
+
+is_optional_unit() {
+  [[ " ${optional_units[*]} " == *" $1 "* ]]
+}
+
+migrate_optional_units() {
+  local unit_dir=$1 wants_dir=$2 name status configured
+  local legacy_enabled=() disable_units=()
+  for name in "${optional_units[@]}"; do
+    if [[ ! -f $unit_dir/$name || ! -L $wants_dir/$name ]]; then
+      continue
+    fi
+    if grep -Fqx "ConditionPathExists=$wants_dir/$name" "$unit_dir/$name"; then
+      continue
+    else
+      status=$?
+      [[ $status -eq 1 ]] || return "$status"
+    fi
+    legacy_enabled+=("$name")
+  done
+  if [[ ${#legacy_enabled[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  configured=$(run_as_owner venv/bin/python manage.py shell -v0 -c \
+    'from nabcommon.optional_units import configured_units; print(*configured_units(), sep="\n")') || return
+  for name in "${legacy_enabled[@]}"; do
+    if ! grep -Fqx "$name" <<< "$configured"; then
+      disable_units+=("$name")
+    fi
+  done
+  if [[ ${#disable_units[@]} -gt 0 ]]; then
+    sudo systemctl disable "${disable_units[@]}"
+  fi
+}
+
 inst_dir=$(dirname ${root_dir})
 boot_config=/boot/firmware/config.txt
 if [ ! -f "$boot_config" ]; then
@@ -252,6 +290,12 @@ fi
 echo "Updating data models"
 run_as_owner venv/bin/python manage.py migrate
 
+# Older updaters explicitly restart previously active units after installation.
+# Disable unused integrations before installing the guard that blocks that start.
+if [ $upgrade -eq 1 ]; then
+  migrate_optional_units /lib/systemd/system /etc/systemd/system/multi-user.target.wants
+fi
+
 all_locales="-l fr_FR -l de_DE -l en_US -l en_GB -l it_IT -l es_ES -l ja_jp -l pt_BR -l de -l en -l es -l fr -l it -l ja -l pt"
 
 echo "Updating localization messages"
@@ -294,7 +338,7 @@ for service_file in nabd/nabd.socket */*.service ; do
   sudo sed -e "s|/opt/pynab|${root_dir}|g" -e "s|/home/pi/pynab|${root_dir}|g" < ${service_file} > /tmp/${name}
   sudo install -o root -g root -m 0644 /tmp/${name} /lib/systemd/system/${name}
   sudo rm -f /tmp/${name}
-  if [ $upgrade -eq 0 ]; then
+  if [ $upgrade -eq 0 ] && ! is_optional_unit "$name"; then
     sudo systemctl enable ${name}
   fi
 done
@@ -355,6 +399,9 @@ if [ $ci_chroot -eq 0 ] && [ $upgrade -eq 0 ]; then
     case $name in
       nabboot.service|nabd.service|nabweb.service|nabassistd.service|nabhomeassistantd.service) continue ;;
     esac
+    if is_optional_unit "$name"; then
+      continue
+    fi
     sudo systemctl start "$name"
   done
   sudo systemctl start nabweb.service

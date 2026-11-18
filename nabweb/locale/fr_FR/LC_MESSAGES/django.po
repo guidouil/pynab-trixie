@@ -664,6 +664,74 @@ msgstr "Activé"
 msgid "Disabled"
 msgstr "Désactivé"
 
+#: templates/nabweb/services/index.html
+msgid "Optional integrations"
+msgstr "Intégrations facultatives"
+
+#: views.py
+msgid "RFID radio"
+msgstr "Radio par badge NFC"
+
+#: templates/nabweb/services/index.html
+msgid "Integration"
+msgstr "Intégration"
+
+#: templates/nabweb/services/index.html
+msgid "On startup"
+msgstr "Au démarrage"
+
+#: templates/nabweb/services/index.html
+msgid "Current status"
+msgstr "État actuel"
+
+#: templates/nabweb/services/index.html
+msgid "Action"
+msgstr "Action"
+
+#: templates/nabweb/services/index.html
+msgid "Unavailable"
+msgstr "Indisponible"
+
+#: templates/nabweb/services/index.html
+msgid "Running"
+msgstr "En cours"
+
+#: templates/nabweb/services/index.html
+msgid "Stopped"
+msgstr "Arrêté"
+
+#: templates/nabweb/services/index.html
+msgid "Starting"
+msgstr "Démarrage en cours"
+
+#: templates/nabweb/services/index.html
+msgid "Stopping"
+msgstr "Arrêt en cours"
+
+#: templates/nabweb/services/index.html
+msgid "Failed"
+msgstr "En échec"
+
+#: templates/nabweb/services/index.html
+msgid "Enable"
+msgstr "Activer"
+
+#: templates/nabweb/services/index.html
+msgid "Disable"
+msgstr "Désactiver"
+
+#: views.py
+msgid "Invalid service or action."
+msgstr "Service ou action invalide."
+
+#: views.py
+msgid "Service changes are unavailable. Check the update status."
+msgstr "Les réglages des intégrations sont indisponibles. Consultez l’état de la mise à jour."
+
+#: views.py
+msgid "Could not change the service. Check its current status."
+msgstr "Modification impossible. Consultez l’état actuel du service."
+
 #: templates/nabweb/system-info/index.html:44
 msgid "Maintenance"
 msgstr "Maintenance"

@@ -6,14 +6,16 @@ import json
 import os
 import platform
 import re
+import subprocess
 
 from django.apps import apps
 from django.conf import settings
 from django.core.cache import cache
-from django.http import Http404, JsonResponse
-from django.shortcuts import render
+from django.http import Http404, HttpResponseBadRequest, JsonResponse
+from django.shortcuts import redirect, render
 from django.utils import translation
-from django.utils.translation import to_language, to_locale
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy, to_language, to_locale
 from django.views.generic import View
 
 from nabcommon import hardware, update
@@ -144,13 +146,89 @@ class NabWebView(BaseView):
 
 
 class NabWebServicesView(BaseView):
+    OPTIONAL_SERVICES = {
+        "nabiftttd.service": "IFTTT",
+        "nabwebhook.service": "Webhook",
+        "nabmastodond.service": "Mastodon",
+        "nabradio.service": gettext_lazy("RFID radio"),
+    }
+
     def template_name(self):
         return "nabweb/services/index.html"
 
     def get_context(self):
         context = super().get_context()
-        context["services"] = BaseView.get_services("services")
+        context["services"] = [
+            name
+            for name in BaseView.get_services("services")
+            if name not in {"nabwebhook", "nabradio"}
+        ]
+        try:
+            result = subprocess.run(
+                [
+                    "/usr/bin/systemctl",
+                    "show",
+                    "--property=Id,UnitFileState,ActiveState",
+                    *self.OPTIONAL_SERVICES,
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            states = {}
+            for block in result.stdout.strip().split("\n\n"):
+                unit = dict(
+                    line.split("=", 1)
+                    for line in block.splitlines()
+                    if "=" in line
+                )
+                if unit_id := unit.get("Id"):
+                    states[unit_id] = unit
+        except (OSError, subprocess.SubprocessError):
+            states = {}
+        context["optional_services"] = [
+            {
+                "unit": unit,
+                "name": name,
+                "activation": states.get(unit, {}).get("UnitFileState"),
+                "runtime": states.get(unit, {}).get("ActiveState"),
+            }
+            for unit, name in self.OPTIONAL_SERVICES.items()
+        ]
         return context
+
+    def post(self, request, *args, **kwargs):
+        unit = request.POST.get("unit", "")
+        action = request.POST.get("action", "")
+        if unit not in self.OPTIONAL_SERVICES or action not in {
+            "enable",
+            "disable",
+        }:
+            return HttpResponseBadRequest(_("Invalid service or action."))
+        try:
+            with update.update_lock():
+                subprocess.run(
+                    ["/usr/bin/systemctl", action, "--now", unit],
+                    check=True,
+                    capture_output=True,
+                    timeout=20,
+                )
+        except update.UpdateError:
+            message = _(
+                "Service changes are unavailable. Check the update status."
+            )
+            status = 409
+        except (OSError, subprocess.SubprocessError):
+            message = _(
+                "Could not change the service. Check its current status."
+            )
+            status = 503
+        else:
+            return redirect("nabweb.services")
+        context = self.get_context()
+        context["service_error"] = message
+        return render(request, self.template_name(), context, status=status)
 
 
 class NabWebRfidView(BaseView):

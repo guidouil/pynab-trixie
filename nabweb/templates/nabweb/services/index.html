@@ -2,6 +2,69 @@
 {% load i18n %}
 {% block subtitle %}{% trans "Services" %}{% endblock %}
 {% block content %}
+  <h2 id="optional-services">{% trans "Optional integrations" %}</h2>
+  {% if service_error %}
+    <p class="alert alert-danger" role="alert">{{ service_error }}</p>
+  {% endif %}
+  <table class="table" aria-labelledby="optional-services">
+    <thead>
+      <tr>
+        <th scope="col">{% trans "Integration" %}</th>
+        <th scope="col">{% trans "On startup" %}</th>
+        <th scope="col">{% trans "Current status" %}</th>
+        <th scope="col">{% trans "Action" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for service in optional_services %}
+        <tr>
+          <th scope="row" id="{{ service.unit }}-name">{{ service.name }}</th>
+          <td>
+            {% if service.activation == "enabled" %}
+              {% trans "Enabled" %}
+            {% elif service.activation == "disabled" %}
+              {% trans "Disabled" %}
+            {% else %}
+              {% trans "Unavailable" %}
+            {% endif %}
+          </td>
+          <td>
+            {% if service.runtime == "active" %}
+              {% trans "Running" %}
+            {% elif service.runtime == "inactive" %}
+              {% trans "Stopped" %}
+            {% elif service.runtime == "activating" %}
+              {% trans "Starting" %}
+            {% elif service.runtime == "deactivating" %}
+              {% trans "Stopping" %}
+            {% elif service.runtime == "failed" %}
+              {% trans "Failed" %}
+            {% else %}
+              {% trans "Unavailable" %}
+            {% endif %}
+          </td>
+          <td>
+            {% if service.activation == "enabled" or service.activation == "disabled" %}
+              <form method="post" action="{% url 'nabweb.services' %}">
+                {% csrf_token %}
+                <input type="hidden" name="unit" value="{{ service.unit }}">
+                <button type="submit" class="btn btn-outline-primary btn-sm"
+                        id="{{ service.unit }}-action"
+                        aria-labelledby="{{ service.unit }}-action {{ service.unit }}-name"
+                        name="action" value="{% if service.activation == 'enabled' %}disable{% else %}enable{% endif %}">
+                  {% if service.activation == "enabled" %}
+                    {% trans "Disable" %}
+                  {% else %}
+                    {% trans "Enable" %}
+                  {% endif %}
+                </button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
   {% for service in services %}
     {% if forloop.counter0|divisibleby:2 %}
     <div class="row">

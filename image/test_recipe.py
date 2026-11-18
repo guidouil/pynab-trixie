@@ -4,10 +4,15 @@ import importlib.util
 import io
 import json
 import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
+
+from nabcommon.optional_units import configured_units, url_configured
 
 HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("image_fetch", HERE / "fetch.py")
@@ -210,6 +215,142 @@ ii raspberrypi-utils
         ):
             self.assertNotIn(private_path, drivers + provision)
         self.assertIn("SystemMaxUse=32M", provision)
+
+
+class OptionalUnitsTest(unittest.TestCase):
+    unit_names = (
+        "nabiftttd.service",
+        "nabmastodond.service",
+        "nabradio.service",
+        "nabwebhook.service",
+    )
+
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        root = Path(directory.name)
+        self.units, self.wants = root / "units", root / "wants"
+        self.units.mkdir()
+        self.wants.mkdir()
+
+    def install_fixture_unit(self, name, enabled=True, guarded=False):
+        unit = self.units / name
+        unit.write_text(
+            f"ConditionPathExists={self.wants / name}\n" if guarded else ""
+        )
+        if enabled:
+            (self.wants / name).symlink_to(unit)
+
+    def migrate(self, configured="", database_status=0, systemctl_status=0):
+        installer = (HERE.parent / "install.sh").read_text()
+        helpers = installer.split("\noptional_units=", 1)[1].split(
+            "\ninst_dir=", 1
+        )[0]
+        return subprocess.run(
+            [
+                "bash",
+                "-c",
+                "set -eu\n"
+                "legacy_configured=$3\ndatabase_status=$4\nsystemctl_status=$5\n"
+                'run_as_owner() { printf "%s\n" "$legacy_configured"; return "$database_status"; }\n'
+                'sudo() { printf "%s\n" "$@"; return "$systemctl_status"; }\n'
+                "optional_units="
+                + helpers
+                + '\nmigrate_optional_units "$1" "$2"\nprintf "continued\n"',
+                "bash",
+                str(self.units),
+                str(self.wants),
+                configured,
+                str(database_status),
+                str(systemctl_status),
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+    def test_fresh_or_guarded_install_skips_legacy_migration(self):
+        result = self.migrate(database_status=17)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "continued\n")
+        for name in self.unit_names:
+            self.install_fixture_unit(name, guarded=True)
+        result = self.migrate(database_status=17)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "continued\n")
+
+    def test_upgrade_leaves_configured_or_manually_disabled_units_alone(self):
+        ifttt, mastodon, radio, webhook = self.unit_names
+        self.install_fixture_unit(ifttt)
+        self.install_fixture_unit(mastodon)
+        self.install_fixture_unit(radio)
+        self.install_fixture_unit(webhook, enabled=False)
+        result = self.migrate(configured=f"{ifttt}\n{radio}")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout.splitlines(),
+            ["systemctl", "disable", mastodon, "continued"],
+        )
+
+    def test_upgrade_stops_before_replacing_units_on_failure(self):
+        self.install_fixture_unit(self.unit_names[0])
+        result = self.migrate(database_status=17)
+        self.assertEqual(result.returncode, 17, result.stderr)
+        self.assertEqual(result.stdout, "")
+        result = self.migrate(systemctl_status=23)
+        self.assertEqual(result.returncode, 23, result.stderr)
+        self.assertNotIn("continued", result.stdout)
+
+    def test_manual_start_requires_persistent_enable_link(self):
+        for name in self.unit_names:
+            unit = (HERE.parent / Path(name).stem / name).read_text()
+            self.assertIn(
+                f"ConditionPathExists=/etc/systemd/system/multi-user.target.wants/{name}",
+                unit,
+            )
+            self.assertIn("WantedBy=multi-user.target", unit)
+
+    def test_legacy_url_configuration_recognizes_stored_tag_urls(self):
+        for url, tags, expected in (
+            ("", "", False),
+            ("", "{}", False),
+            ("", "invalid JSON", False),
+            ("", '{"123":"https://example.invalid"}', True),
+            ("https://example.invalid", "", True),
+        ):
+            with self.subTest(url=url, tags=tags):
+                self.assertEqual(url_configured(url, tags), expected)
+
+    def test_legacy_database_uses_existing_configuration_without_writes(self):
+        records = (
+            SimpleNamespace(ifttt_key="configured"),
+            SimpleNamespace(access_token=None),
+            SimpleNamespace(
+                streaming_url="",
+                json_data_base='{"123":"https://example.invalid"}',
+            ),
+            SimpleNamespace(
+                webhook_url="https://example.invalid",
+                json_data_base="",
+            ),
+        )
+        modules = {}
+        for name, record in zip(self.unit_names, records):
+            model = Mock()
+            model.objects.filter.return_value.first.return_value = record
+            modules[Path(name).stem + ".models"] = SimpleNamespace(
+                Config=model
+            )
+        with patch.dict(sys.modules, modules):
+            self.assertEqual(
+                list(configured_units()),
+                [
+                    "nabiftttd.service",
+                    "nabradio.service",
+                    "nabwebhook.service",
+                ],
+            )
+        for module in modules.values():
+            module.Config.objects.filter.assert_called_once_with(pk=1)
 
 
 if __name__ == "__main__":
