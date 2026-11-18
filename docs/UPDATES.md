@@ -31,6 +31,16 @@ modification du code ou des services.
 Les fichiers ignorés par Git, notamment le venv et les modèles téléchargés,
 restent en place.
 
+Sur un Raspberry Pi Zero W d'origine, la surveillance du bouton utilise les
+événements du noyau avec `python3-libgpiod`. La recette de carte vierge installe
+ce paquet. Sur une carte existante sans ce paquet, l'installer avant la mise à
+jour pour bénéficier de l'optimisation. Le bouton continue de fonctionner avec
+le pilote précédent si le binding v2 est absent.
+
+```sh
+sudo apt install python3-libgpiod
+```
+
 Une ancienne installation avec des correctifs non commités doit d'abord être
 sauvegardée et rapprochée de notre version. Changer seulement son adresse
 `origin` ne constitue pas une migration. La procédure privée sous `Migration/`
