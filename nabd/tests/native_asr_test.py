@@ -321,7 +321,7 @@ class TestNativeASRReload(unittest.IsolatedAsyncioTestCase):
         config = SimpleNamespace(locale="fr_FR")
         i18n = SimpleNamespace(
             Config=SimpleNamespace(
-                load=Mock(return_value=config),
+                load_once=Mock(return_value=config),
                 load_async=AsyncMock(return_value=config),
             )
         )

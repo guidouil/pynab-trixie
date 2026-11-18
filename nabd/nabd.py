@@ -136,7 +136,7 @@ class Nabd:
                 from .asr import ASR
                 from .nlu import NLU
 
-                config = i18n.Config.load()
+                config = i18n.Config.load_once()
                 self._asr_locale = ASR.get_locale(config.locale)
                 self.asr = ASR(self._asr_locale)
                 Nabd.leds_boot(self.nabio, 3)

@@ -20,7 +20,7 @@ class NabClockd(nabservice.NabService):
         super().__init__()
         from . import models
 
-        self.config = models.Config.load()
+        self.config = models.Config.load_once()
         self.loop_cv = asyncio.Condition()
         self.asleep = None
         self.last_chime = None

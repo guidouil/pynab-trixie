@@ -1,5 +1,26 @@
 from asgiref.sync import sync_to_async
-from django.db import models
+from django.db import connections, models
+
+
+def _with_transient_connection(operation, /, *args, **kwargs):
+    # Daemons have no request lifecycle. Leave connections owned by callers open.
+    open_aliases = {
+        conn.alias
+        for conn in connections.all(initialized_only=True)
+        if conn.connection is not None
+    }
+    try:
+        return operation(*args, **kwargs)
+    finally:
+        for conn in connections.all(initialized_only=True):
+            if (
+                conn.alias not in open_aliases
+                and conn.connection is not None
+                and conn.settings_dict["CONN_MAX_AGE"] == 0
+                and not conn.in_atomic_block
+                and conn.get_autocommit()
+            ):
+                conn.close()
 
 
 class SingletonModel(models.Model):
@@ -39,12 +60,15 @@ class SingletonModel(models.Model):
         obj, created = cls.objects.get_or_create(pk=1)
         return obj
 
-    # asyncio-compatible versions, using sync_to_async
+    @classmethod
+    def load_once(cls):
+        return _with_transient_connection(cls.load)
+
     @classmethod
     async def load_async(cls):
-        return await sync_to_async(cls.load, thread_sensitive=True)()
+        return await sync_to_async(cls.load_once, thread_sensitive=True)()
 
     async def save_async(self, *args, **kwargs):
-        return await sync_to_async(self.save, thread_sensitive=True)(
-            *args, **kwargs
-        )
+        return await sync_to_async(
+            _with_transient_connection, thread_sensitive=True
+        )(self.save, *args, **kwargs)
