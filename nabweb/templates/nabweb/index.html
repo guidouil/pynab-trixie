@@ -15,6 +15,16 @@
       <img src="{% static 'nabweb/favicon/favicon.ico' %}" width="128" height="128" alt="">
     </div>
   </section>
+  <details class="card home-help mb-4">
+    <summary>{% trans "Help" %}</summary>
+    <div class="card-body">
+      <p>{% trans "Then maybe create an account to connect your Nabaztag to <a target='_blank' href='https://joinmastodon.org' rel='noopener noreferrer'>Mastodon</a> where it may join fellow rabbits <small>(for now, this is only used by ear communion service)</small>." %}</p>
+      <p>{% trans "Eventually, explore the top navigation bar to configure <a href='/services/'>Nabaztag services</a> or <a href='/rfid/'>NFC tags</a>, <a href='/upgrade/'>upgrade software</a>, <a target='_blank' href='/help/'>get help</a> or even visit the <a target='_blank' href='https://github.com/guidouil/pynab-trixie/tree/trixie' rel='noopener noreferrer'>GitHub repository</a> to start hacking, adding features or simply report bugs." %}</p>
+
+      <p>{% trans "You can also trigger some services with your voice by pushing and holding the button on the rabbit's head." %}</p>
+      <p>{% trans "For open conversations, discover <a href='https://github.com/guidouil/nabaztag_IA' target='_blank' rel='noopener noreferrer'>Nabaztag IA</a>, the companion application for Apple Silicon Macs running macOS 14 or later. Keep the application running and your Mac awake while using it." %}</p>
+    </div>
+  </details>
   <div class="row">
     <div class="col-md-6 mb-3">
       <div class="card" id="language-settings">
@@ -51,16 +61,6 @@
       <div class="settings col-md-6 mb-3" data-url="/{{ service }}/settings"></div>
     {% endfor %}
   </div>
-  <details class="card home-help">
-    <summary>{% trans "Help" %}</summary>
-    <div class="card-body">
-      <p>{% trans "Then maybe create an account to connect your Nabaztag to <a target='_blank' href='https://joinmastodon.org' rel='noopener noreferrer'>Mastodon</a> where it may join fellow rabbits <small>(for now, this is only used by ear communion service)</small>." %}</p>
-      <p>{% trans "Eventually, explore the top navigation bar to configure <a href='/services/'>Nabaztag services</a> or <a href='/rfid/'>NFC tags</a>, <a href='/upgrade/'>upgrade software</a>, <a target='_blank' href='/help/'>get help</a> or even visit the <a target='_blank' href='https://github.com/guidouil/pynab-trixie/tree/trixie' rel='noopener noreferrer'>GitHub repository</a> to start hacking, adding features or simply report bugs." %}</p>
-
-      <p>{% trans "You can also trigger some services with your voice by pushing and holding the button on the rabbit's head." %}</p>
-      <p>{% trans "For open conversations, discover <a href='https://github.com/guidouil/nabaztag_IA' target='_blank' rel='noopener noreferrer'>Nabaztag IA</a>, the companion application for Apple Silicon Macs running macOS 14 or later. Keep the application running and your Mac awake while using it." %}</p>
-    </div>
-  </details>
   <script type="text/javascript">
   $(function() {
     var form = $('#language-settings form');

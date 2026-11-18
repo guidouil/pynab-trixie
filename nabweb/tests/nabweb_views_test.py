@@ -19,8 +19,10 @@ class TestView(TestCase):
         response = c.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.templates[0].name, "nabweb/index.html")
-        self.assertTrue("services" in response.context)
-        self.assertTrue("nabmastodond" in response.context["services"])
+        self.assertEqual(
+            response.context["services"],
+            ["nabmastodond", "nabhomeassistantd", "nabassistd"],
+        )
         self.assertTrue("current_locale" in response.context)
         self.assertEqual(response.context["current_locale"], "fr_FR")
 
