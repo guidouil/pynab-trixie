@@ -9,14 +9,14 @@
       <div class="form-group row">
         <label for="chimeHoursBtn" class="col-6 col-form-label">{% trans "Chime hours" %}</label>
         <div class="col-6">
-          <button id="chimeHoursBtn" type="button" class="btn btn-toggle{% if config.chime_hour %} active{% endif %}" data-name="chime_hour" data-toggle="button" aria-pressed="false" autocomplete="off"><div class="handle"></div></button>
+          <button id="chimeHoursBtn" type="button" class="btn btn-toggle{% if config.chime_hour %} active{% endif %}" data-name="chime_hour" data-toggle="button" aria-pressed="{{ config.chime_hour|yesno:'true,false' }}" autocomplete="off"><span class="handle" aria-hidden="true"></span></button>
           <input name="chime_hour" type="hidden" value="{% if config.chime_hour %}true{% else %}false{% endif %}" />
         </div>
       </div>
       <div class="form-group row">
         <label for="distinctTimesBtn" class="col-6 col-form-label">{% trans "Custom hours for each day of the week" %}</label>
         <div class="col-6">
-          <button id="distinctTimesBtn" type="button" class="btn btn-toggle{% if config.settings_per_day %} active{% endif %}" data-name="settings_per_day" data-toggle="button" aria-pressed="false" autocomplete="off"><div class="handle"></div></button>
+          <button id="distinctTimesBtn" type="button" class="btn btn-toggle{% if config.settings_per_day %} active{% endif %}" data-name="settings_per_day" data-toggle="button" aria-pressed="{{ config.settings_per_day|yesno:'true,false' }}" autocomplete="off"><span class="handle" aria-hidden="true"></span></button>
           <input name="settings_per_day" type="hidden" value="{% if config.settings_per_day %}true{% else %}false{% endif %}" />
         </div>
       </div>      
@@ -192,7 +192,7 @@
       <div class="form-group row">
         <label for="playSoundsBtn" class="col-6 col-form-label">{% trans "Play wake up and sleep sound" %}</label>
         <div class="col-6">
-          <button id="playSoundsBtn" type="button" class="btn btn-toggle{% if config.play_wakeup_sleep_sounds %} active{% endif %}" data-name="play_wakeup_sleep_sounds" data-toggle="button" aria-pressed="false" autocomplete="off"><div class="handle"></div></button>
+          <button id="playSoundsBtn" type="button" class="btn btn-toggle{% if config.play_wakeup_sleep_sounds %} active{% endif %}" data-name="play_wakeup_sleep_sounds" data-toggle="button" aria-pressed="{{ config.play_wakeup_sleep_sounds|yesno:'true,false' }}" autocomplete="off"><span class="handle" aria-hidden="true"></span></button>
           <input name="play_wakeup_sleep_sounds" type="hidden" value="{% if config.play_wakeup_sleep_sounds %}true{% else %}false{% endif %}" />
         </div>
       </div>

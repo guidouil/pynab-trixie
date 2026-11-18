@@ -11,7 +11,7 @@
       <div class="form-group row">
         <label for="haEnabled" class="col-6 col-form-label">{% trans "Enabled" %}</label>
         <div class="col-6">
-          <input id="haEnabled" name="enabled" type="checkbox" {% if config.enabled %}checked{% endif %}/>
+          <input id="haEnabled" name="enabled" type="checkbox" role="switch" {% if config.enabled %}checked{% endif %}/>
         </div>
       </div>
 

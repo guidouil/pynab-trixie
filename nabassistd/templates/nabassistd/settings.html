@@ -11,7 +11,7 @@
       <div class="form-group row">
         <label for="assistEnabled" class="col-6 col-form-label">{% trans "Enabled" %}</label>
         <div class="col-6">
-          <input id="assistEnabled" name="enabled" type="checkbox" {% if config.enabled %}checked{% endif %}/>
+          <input id="assistEnabled" name="enabled" type="checkbox" role="switch" {% if config.enabled %}checked{% endif %}/>
         </div>
       </div>
 
@@ -71,7 +71,7 @@
       <div class="form-group row">
         <label for="assistFallback" class="col-6 col-form-label">{% trans "Fallback to Home Assistant wake word" %}</label>
         <div class="col-6">
-          <input id="assistFallback" name="fallback_to_remote" type="checkbox" {% if config.fallback_to_remote %}checked{% endif %}/>
+          <input id="assistFallback" name="fallback_to_remote" type="checkbox" role="switch" {% if config.fallback_to_remote %}checked{% endif %}/>
         </div>
       </div>
 
