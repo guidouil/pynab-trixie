@@ -28,7 +28,7 @@ if [[ $phase == drivers ]]; then
   printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d
   chmod 755 /usr/sbin/policy-rc.d
   apt-get update
-  apt-get install -y --no-install-recommends build-essential device-tree-compiler linux-image-rpi-v6 linux-headers-rpi-v6 git python3 python3-venv python3-dev python3-rpi-lgpio python3-lgpio postgresql libpq5 gettext nginx libmpg123-dev libasound2-dev libmagic1t64 alsa-utils xz-utils avahi-daemon curl mpg123 netcat-openbsd comitup network-manager
+  apt-get install -y --no-install-recommends build-essential device-tree-compiler linux-image-rpi-v6 linux-headers-rpi-v6 git python3 python3-venv python3-dev python3-rpi-lgpio python3-lgpio python3-libgpiod postgresql libpq5 gettext nginx libmpg123-dev libasound2-dev libmagic1t64 alsa-utils xz-utils avahi-daemon curl mpg123 netcat-openbsd comitup network-manager
   cleanup
   trap - EXIT
   kernel_package=$(dpkg-query -W -f='${Depends}' linux-image-rpi-v6 | grep -oE 'linux-image-[0-9][^ ,()]+' | head -n 1)

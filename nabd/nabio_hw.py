@@ -31,6 +31,9 @@ class NabIOHW(NabIO):
         self.sound = SoundAlsa(self.model)
         self.button = ButtonGPIO(self.model)
 
+    def close_button(self):
+        self.button.close()
+
     def has_sound_input(self):
         return (
             self.model != NabIOHW.MODEL_NONE
