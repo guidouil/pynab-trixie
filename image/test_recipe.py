@@ -216,6 +216,16 @@ ii raspberrypi-utils
             self.assertNotIn(private_path, drivers + provision)
         self.assertIn("SystemMaxUse=32M", provision)
 
+    def test_fresh_card_installs_gpio_bindings(self):
+        provision = (HERE / "provision.sh").read_text()
+        packages = next(
+            line.split()
+            for line in provision.splitlines()
+            if line.strip().startswith("apt-get install ")
+        )
+        self.assertIn("python3-libgpiod", packages)
+        self.assertIn("python3-rpi-lgpio", packages)
+
 
 class OptionalUnitsTest(unittest.TestCase):
     unit_names = (

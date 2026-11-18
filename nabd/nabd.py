@@ -1413,6 +1413,7 @@ class Nabd:
             print(error_msg)
             logging.critical(error_msg)
         finally:
+            self.nabio.close_button()
             warmup_task.cancel()
             try:
                 self.loop.run_until_complete(warmup_task)

@@ -133,6 +133,9 @@ class NabIO(object, metaclass=abc.ABCMeta):
         """
         self.button.on_event(loop, callback)
 
+    def close_button(self):
+        pass
+
     def bind_ears_event(self, loop, callback):
         """
         Define the callback for ears events.
