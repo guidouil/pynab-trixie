@@ -122,7 +122,13 @@ class TestView(TestCase):
                     response, "/services/", fetch_redirect_response=False
                 )
                 systemctl.assert_called_with(
-                    ["/usr/bin/systemctl", action, "--now", unit],
+                    [
+                        "/usr/bin/systemctl",
+                        "--no-reload",
+                        action,
+                        "--now",
+                        unit,
+                    ],
                     check=True,
                     capture_output=True,
                     timeout=20,

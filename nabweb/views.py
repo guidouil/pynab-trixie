@@ -208,8 +208,15 @@ class NabWebServicesView(BaseView):
             return HttpResponseBadRequest(_("Invalid service or action."))
         try:
             with update.update_lock():
+                # Updating the boot links needs no global reload.
                 subprocess.run(
-                    ["/usr/bin/systemctl", action, "--now", unit],
+                    [
+                        "/usr/bin/systemctl",
+                        "--no-reload",
+                        action,
+                        "--now",
+                        unit,
+                    ],
                     check=True,
                     capture_output=True,
                     timeout=20,
